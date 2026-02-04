@@ -1,11 +1,18 @@
-import { test } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import { LoginPage } from "../pages/LoginPage";
 
-test("User can login successfully", async ({ page }) => {
-	await page.goto("https://www.saucedemo.com/");
+test.describe("Login Tests", () => {
+	test("Valid Login", async ({ page }) => {
+		const login = new LoginPage(page);
+		await login.goto();
+		await login.login("standard_user", "secret_sauce");
+		await expect(page).toHaveURL(/inventory/);
+	});
 
-	const loginPage = new LoginPage(page);
-	await loginPage.login("standard_user", "secret_sauce");
-
-	await page.waitForSelector(".inventory_list");
+	test("Invalid Login Shows Error", async ({ page }) => {
+		const login = new LoginPage(page);
+		await login.goto();
+		await login.login("locked_out_user", "wrong_password");
+		await expect(login.getErrorMessage()).resolves.toContain("Epic sadface");
+	});
 });

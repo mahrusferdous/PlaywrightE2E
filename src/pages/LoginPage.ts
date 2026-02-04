@@ -2,23 +2,30 @@ import { Page, Locator } from "@playwright/test";
 
 export class LoginPage {
 	private page: Page;
-	private usernameInput: Locator;
-	private passwordInput: Locator;
-	private submitBtn: Locator;
+	private username: Locator;
+	private password: Locator;
+	private btnLogin: Locator;
+	private errorMsg: Locator;
 
 	constructor(page: Page) {
 		this.page = page;
-		this.usernameInput = page.locator("#user-name");
-		this.passwordInput = page.locator("#password");
-		this.submitBtn = page.locator("#login-button");
+		this.username = page.locator("#user-name");
+		this.password = page.locator("#password");
+		this.btnLogin = page.locator("#login-button");
+		this.errorMsg = page.locator("data-test=error");
 	}
 
-	async login(username: string, password: string): Promise<void> {
-		await this.usernameInput.fill(username);
-		await this.passwordInput.fill(password);
-		await this.submitBtn.click();
+	async goto() {
+		await this.page.goto("https://www.saucedemo.com/");
+	}
 
-		// Wait until inventory page loads
-		await this.page.waitForSelector(".inventory_list");
+	async login(username: string, password: string) {
+		await this.username.fill(username);
+		await this.password.fill(password);
+		await this.btnLogin.click();
+	}
+
+	async getErrorMessage() {
+		return this.errorMsg.textContent();
 	}
 }

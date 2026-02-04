@@ -37,6 +37,12 @@ To run tests locally, use the following command:
 yarn test
 ```
 
+To run tests in headed mode (with browser UI), use:
+
+```bash
+yarn test:headed
+```
+
 ### Using Docker
 
 To run tests in a Docker container, build the Docker image and run the container:
