@@ -24,6 +24,9 @@ const MAX_RETURN_CHARS = 4200;
 
 let cache: ContextIndexCache | null = null;
 
+/**
+ * Emits verbose logs when AI_HEALING_VERBOSE is enabled.
+ */
 function verboseLog(message: string, data?: unknown) {
 	if (process.env.AI_HEALING_VERBOSE !== "true") {
 		return;
@@ -37,6 +40,9 @@ function verboseLog(message: string, data?: unknown) {
 	console.info(`[AI-Heal][Verbose] ${message}`, data);
 }
 
+/**
+ * Splits text into normalized search tokens for ranking.
+ */
 function splitWords(value: string): string[] {
 	return value
 		.replace(/([a-z])([A-Z])/g, "$1 $2")
@@ -48,6 +54,9 @@ function splitWords(value: string): string[] {
 		.filter((token) => token !== "broken");
 }
 
+/**
+ * Resolves the configured project context root directory.
+ */
 function getContextRootDir(): string {
 	const configured = process.env.AI_HEALING_PROJECT_CONTEXT_DIR?.trim();
 	if (!configured) {
@@ -61,10 +70,16 @@ function getContextRootDir(): string {
 	return path.resolve(process.cwd(), configured);
 }
 
+/**
+ * Indicates if source-context enrichment is enabled.
+ */
 function isProjectContextEnabled(): boolean {
 	return process.env.AI_HEALING_USE_PROJECT_CONTEXT !== "false";
 }
 
+/**
+ * Recursively collects source files from the context directory.
+ */
 function walkFiles(rootDir: string): string[] {
 	const queue: string[] = [rootDir];
 	const files: string[] = [];
@@ -99,6 +114,9 @@ function walkFiles(rootDir: string): string[] {
 	return files;
 }
 
+/**
+ * Builds an in-memory index of selector-relevant lines.
+ */
 function buildIndex(rootDir: string): ContextIndexCache {
 	const files = walkFiles(rootDir);
 	const lines: IndexedLine[] = [];
@@ -146,6 +164,9 @@ function buildIndex(rootDir: string): ContextIndexCache {
 	return { rootDir, lines };
 }
 
+/**
+ * Returns cached index for the current root, building it when needed.
+ */
 function ensureIndex(rootDir: string): ContextIndexCache | null {
 	if (!fs.existsSync(rootDir)) {
 		verboseLog("Project context directory not found", { rootDir });
@@ -160,6 +181,9 @@ function ensureIndex(rootDir: string): ContextIndexCache | null {
 	return cache;
 }
 
+/**
+ * Scores how relevant a source line is for the current healing context.
+ */
 function scoreLine(line: IndexedLine, tokens: string[]): number {
 	let score = 0;
 	for (const token of tokens) {
@@ -179,6 +203,13 @@ function scoreLine(line: IndexedLine, tokens: string[]): number {
 	return score;
 }
 
+/**
+ * Produces a concise source-context snippet from project files.
+ *
+ * @param keyPath Locator key path under repair.
+ * @param failedSelector Failed selector text.
+ * @returns Formatted source hints for LLM prompt, or empty string.
+ */
 export function getProjectContextSnippet(keyPath: string, failedSelector: string): string {
 	if (!isProjectContextEnabled()) {
 		return "";

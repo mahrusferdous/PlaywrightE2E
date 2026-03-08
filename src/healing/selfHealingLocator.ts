@@ -17,6 +17,9 @@ interface ResolveLocatorOptions extends HealingActionOptions {
 	validateOnResolve?: boolean;
 }
 
+/**
+ * Emits verbose logs when AI_HEALING_VERBOSE is enabled.
+ */
 function verboseLog(message: string, data?: unknown) {
 	if (!isAiHealingVerbose()) {
 		return;
@@ -30,6 +33,9 @@ function verboseLog(message: string, data?: unknown) {
 	console.info(`[AI-Heal][Verbose] ${message}`, data);
 }
 
+/**
+ * Emits live logs when AI_HEALING_LIVE_LLM_LOG is enabled.
+ */
 function liveLog(message: string, data?: unknown) {
 	if (!isAiHealingLiveLogEnabled()) {
 		return;
@@ -43,6 +49,9 @@ function liveLog(message: string, data?: unknown) {
 	console.info(`[AI-Heal][Live] ${message}`, data);
 }
 
+/**
+ * Checks whether an error likely represents a locator failure.
+ */
 function looksLikeLocatorFailure(error: unknown): boolean {
 	if (!(error instanceof Error)) {
 		return false;
@@ -58,6 +67,9 @@ function looksLikeLocatorFailure(error: unknown): boolean {
 	);
 }
 
+/**
+ * Splits text into normalized tokens for intent matching.
+ */
 function splitWords(value: string): string[] {
 	return value
 		.replace(/([a-z])([A-Z])/g, "$1 $2")
@@ -68,6 +80,9 @@ function splitWords(value: string): string[] {
 		.filter((token) => token.length >= 3);
 }
 
+/**
+ * Builds intent tokens from key path and failed selector text.
+ */
 function getIntentTokens(keyPath: string, failedSelector: string): string[] {
 	const keyParts = keyPath.split(".");
 	const fromKeyPath = keyParts.flatMap((part) => splitWords(part));
@@ -81,6 +96,9 @@ function getIntentTokens(keyPath: string, failedSelector: string): string[] {
 	return Array.from(new Set([...fromKeyPath, ...fromSelector]));
 }
 
+/**
+ * Ensures candidate selector is semantically related to expected target.
+ */
 function candidateMatchesIntent(candidate: string, tokens: string[]): boolean {
 	if (tokens.length === 0) {
 		return true;
@@ -90,6 +108,9 @@ function candidateMatchesIntent(candidate: string, tokens: string[]): boolean {
 	return tokens.some((token) => normalizedCandidate.includes(token));
 }
 
+/**
+ * Builds a focused DOM snippet around failed selector tokens.
+ */
 function buildFocusedHtmlSnippet(pageHtml: string, failedSelector: string): string {
 	const html = pageHtml;
 	const tokenCandidates = failedSelector
@@ -131,6 +152,9 @@ function buildFocusedHtmlSnippet(pageHtml: string, failedSelector: string): stri
 	return html.slice(0, 7000);
 }
 
+/**
+ * Validates candidate selectors against current page state.
+ */
 async function findValidSelector(
 	page: Page,
 	selectors: string[],
@@ -181,6 +205,9 @@ async function findValidSelector(
 	return null;
 }
 
+/**
+ * Requests, filters, and validates replacement selectors for a failed key path.
+ */
 async function resolveValidSelector(
 	page: Page,
 	keyPath: string,
@@ -213,6 +240,14 @@ async function resolveValidSelector(
 	);
 }
 
+/**
+ * Resolves a locator with optional self-healing fallback.
+ *
+ * @param page Active Playwright page.
+ * @param keyPath Locator key path such as `login.username`.
+ * @param options Locator resolution options.
+ * @returns A Playwright locator using base or healed selector.
+ */
 export async function resolveSelfHealingLocator(
 	page: Page,
 	keyPath: string,
@@ -257,6 +292,15 @@ export async function resolveSelfHealingLocator(
 	return page.locator(validSelector);
 }
 
+/**
+ * Executes an action using a locator with automatic self-healing retries.
+ *
+ * @param page Active Playwright page.
+ * @param keyPath Locator key path such as `login.username`.
+ * @param action Callback that performs action using resolved locator.
+ * @param options Healing options controlling validation and behavior.
+ * @returns The action result.
+ */
 export async function withSelfHealingLocator<T>(
 	page: Page,
 	keyPath: string,

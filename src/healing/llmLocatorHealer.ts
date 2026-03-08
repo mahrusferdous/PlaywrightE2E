@@ -20,14 +20,23 @@ export function isAiHealingEnabled() {
 	return process.env.AI_HEALING_ENABLED === "true";
 }
 
+/**
+ * Indicates if verbose healing logs are enabled.
+ */
 export function isAiHealingVerbose() {
 	return process.env.AI_HEALING_VERBOSE === "true";
 }
 
+/**
+ * Indicates if live LLM communication logs are enabled.
+ */
 export function isAiHealingLiveLogEnabled() {
 	return process.env.AI_HEALING_LIVE_LLM_LOG === "true";
 }
 
+/**
+ * Emits verbose logs when AI_HEALING_VERBOSE is enabled.
+ */
 function verboseLog(message: string, data?: unknown) {
 	if (!isAiHealingVerbose()) {
 		return;
@@ -41,6 +50,9 @@ function verboseLog(message: string, data?: unknown) {
 	console.info(`[AI-Heal][Verbose] ${message}`, data);
 }
 
+/**
+ * Emits live logs when AI_HEALING_LIVE_LLM_LOG is enabled.
+ */
 function liveLog(message: string, data?: unknown) {
 	if (!isAiHealingLiveLogEnabled()) {
 		return;
@@ -54,6 +66,9 @@ function liveLog(message: string, data?: unknown) {
 	console.info(`[AI-Heal][Live] ${message}`, data);
 }
 
+/**
+ * Truncates long text for safer console output.
+ */
 function truncateForLog(value: string, maxLength = 2500): string {
 	if (value.length <= maxLength) {
 		return value;
@@ -62,6 +77,9 @@ function truncateForLog(value: string, maxLength = 2500): string {
 	return `${value.slice(0, maxLength)}\n...<truncated ${value.length - maxLength} chars>`;
 }
 
+/**
+ * Extracts text content from various Ollama message content shapes.
+ */
 function extractMessageContent(raw: unknown): string {
 	if (typeof raw === "string") {
 		return raw;
@@ -87,6 +105,9 @@ function extractMessageContent(raw: unknown): string {
 	return "";
 }
 
+/**
+ * Checks whether a string looks like a valid selector candidate.
+ */
 function isLikelySelector(value: string): boolean {
 	const candidate = value.trim();
 	if (!candidate) {
@@ -120,6 +141,9 @@ function isLikelySelector(value: string): boolean {
 	return true;
 }
 
+/**
+ * Normalizes selector strings for consistent parsing and deduplication.
+ */
 function normalizeSelector(value: string): string {
 	return value
 		.trim()
@@ -129,6 +153,9 @@ function normalizeSelector(value: string): string {
 		.replace(/[-_]+$/, "");
 }
 
+/**
+ * Extracts selector candidates from backtick-wrapped segments.
+ */
 function collectSelectorsFromBackticks(content: string): string[] {
 	const matches = content.match(/`([^`]+)`/g) ?? [];
 	return matches
@@ -136,6 +163,9 @@ function collectSelectorsFromBackticks(content: string): string[] {
 		.filter((candidate) => isLikelySelector(candidate));
 }
 
+/**
+ * Generates deterministic fallback selectors from failed selector text.
+ */
 function generateFallbackSelectors(prompt: LocatorHealingPrompt): string[] {
 	const candidates = new Set<string>();
 	const trimmed = prompt.failedSelector.trim();
@@ -162,6 +192,9 @@ function generateFallbackSelectors(prompt: LocatorHealingPrompt): string[] {
 	return sanitized;
 }
 
+/**
+ * Parses selector candidates from LLM output content.
+ */
 function parseSelectors(content: string): string[] {
 	const trimmed = content.trim();
 	if (!trimmed) {
@@ -234,10 +267,16 @@ function parseSelectors(content: string): string[] {
 	return Array.from(new Set([...lines, ...fromBackticks]));
 }
 
+/**
+ * Returns the system prompt used for selector healing.
+ */
 function getSystemPrompt() {
 	return 'You repair broken Playwright selectors. Return ONLY valid JSON in this shape: {"selectors":["selector1","selector2"]}. Do not include markdown or explanations.';
 }
 
+/**
+ * Builds the user prompt for a locator healing request.
+ */
 function getUserPrompt(prompt: LocatorHealingPrompt) {
 	const sections = [
 		"Generate replacement selector candidates for this broken Playwright locator.",
@@ -263,6 +302,9 @@ function getUserPrompt(prompt: LocatorHealingPrompt) {
 	return sections.join("\n");
 }
 
+/**
+ * Builds Ollama chat payload for streaming or non-streaming requests.
+ */
 function buildOllamaPayload(prompt: LocatorHealingPrompt, stream: boolean) {
 	return {
 		model: process.env.AI_HEALING_MODEL ?? DEFAULT_OLLAMA_MODEL,
@@ -277,6 +319,9 @@ function buildOllamaPayload(prompt: LocatorHealingPrompt, stream: boolean) {
 	};
 }
 
+/**
+ * Logs request metadata and prompt previews for live debugging.
+ */
 function logLiveRequestPreview(baseUrl: string, payload: ReturnType<typeof buildOllamaPayload>, stream: boolean) {
 	liveLog("Request dispatch", {
 		endpoint: `${baseUrl}/api/chat`,
@@ -287,6 +332,9 @@ function logLiveRequestPreview(baseUrl: string, payload: ReturnType<typeof build
 	liveLog("TX user prompt", truncateForLog(payload.messages[1].content));
 }
 
+/**
+ * Sends a streaming request to Ollama and collects streamed content.
+ */
 async function requestFromOllamaStreaming(baseUrl: string, prompt: LocatorHealingPrompt): Promise<string> {
 	const payload = buildOllamaPayload(prompt, true);
 	logLiveRequestPreview(baseUrl, payload, true);
@@ -353,6 +401,9 @@ async function requestFromOllamaStreaming(baseUrl: string, prompt: LocatorHealin
 	return fullContent;
 }
 
+/**
+ * Sends a standard (non-streaming) request to Ollama.
+ */
 async function requestFromOllamaNonStreaming(
 	baseUrl: string,
 	prompt: LocatorHealingPrompt,
@@ -378,6 +429,9 @@ async function requestFromOllamaNonStreaming(
 	return messageContent;
 }
 
+/**
+ * Requests selector candidates from Ollama, with live-stream fallback handling.
+ */
 async function requestFromOllama(prompt: LocatorHealingPrompt): Promise<string[]> {
 	const baseUrl = (process.env.AI_HEALING_BASE_URL ?? DEFAULT_OLLAMA_BASE_URL).replace(/\/$/, "");
 	const model = process.env.AI_HEALING_MODEL ?? DEFAULT_OLLAMA_MODEL;
@@ -416,6 +470,12 @@ async function requestFromOllama(prompt: LocatorHealingPrompt): Promise<string[]
 	return merged;
 }
 
+/**
+ * Requests selector candidates for a failed locator action.
+ *
+ * This function enriches the prompt with optional project source context,
+ * sends it to Ollama, and returns deduplicated candidate selectors.
+ */
 export async function requestSelectorCandidates(prompt: LocatorHealingPrompt): Promise<string[]> {
 	if (!isAiHealingEnabled()) {
 		return [];

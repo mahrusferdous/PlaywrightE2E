@@ -1,3 +1,9 @@
+/**
+ * Central locator map for all Playwright E2E page objects.
+ *
+ * Intentionally broken selectors are kept in some entries to demonstrate
+ * and validate the self-healing workflow.
+ */
 export const appLocators = {
 	app: {
 		baseUrl: "https://www.saucedemo.com/",
