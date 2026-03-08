@@ -1,4 +1,5 @@
 import { Page, Locator } from "@playwright/test";
+import { appLocators } from "./locators";
 
 export class LoginPage {
 	private page: Page;
@@ -9,14 +10,14 @@ export class LoginPage {
 
 	constructor(page: Page) {
 		this.page = page;
-		this.username = page.locator("#user-name");
-		this.password = page.locator("#password");
-		this.btnLogin = page.locator("#login-button");
-		this.errorMsg = page.locator("data-test=error");
+		this.username = page.locator(appLocators.login.username);
+		this.password = page.locator(appLocators.login.password);
+		this.btnLogin = page.locator(appLocators.login.loginButton);
+		this.errorMsg = page.locator(appLocators.login.errorMessage);
 	}
 
 	async goto() {
-		await this.page.goto("https://www.saucedemo.com/");
+		await this.page.goto(appLocators.app.baseUrl);
 	}
 
 	async login(username: string, password: string) {

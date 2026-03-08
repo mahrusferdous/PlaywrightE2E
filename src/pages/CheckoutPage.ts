@@ -1,4 +1,5 @@
 import { Page, Locator } from "@playwright/test";
+import { appLocators } from "./locators";
 
 export class CheckoutPage {
 	private page: Page;
@@ -10,11 +11,11 @@ export class CheckoutPage {
 
 	constructor(page: Page) {
 		this.page = page;
-		this.firstName = page.locator("#first-name");
-		this.lastName = page.locator("#last-name");
-		this.postalCode = page.locator("#postal-code");
-		this.continueBtn = page.locator("#continue");
-		this.finishBtn = page.locator("#finish");
+		this.firstName = page.locator(appLocators.checkout.firstName);
+		this.lastName = page.locator(appLocators.checkout.lastName);
+		this.postalCode = page.locator(appLocators.checkout.postalCode);
+		this.continueBtn = page.locator(appLocators.checkout.continueButton);
+		this.finishBtn = page.locator(appLocators.checkout.finishButton);
 	}
 
 	async fillCheckoutForm(first: string, last: string, zip: string) {
@@ -29,6 +30,6 @@ export class CheckoutPage {
 	}
 
 	async backHome() {
-		await this.page.locator("#back-to-products").click();
+		await this.page.locator(appLocators.checkout.backToProductsButton).click();
 	}
 }

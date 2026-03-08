@@ -4,16 +4,18 @@
 	"description": "",
 	"main": "index.js",
 	"scripts": {
-		"test": "npx playwright test",
-		"test:headed": "npx playwright test --headed",
-		"test:report": "npx playwright show-report"
+		"test": "playwright test",
+		"test:headed": "playwright test --headed",
+		"test:report": "playwright show-report"
 	},
 	"keywords": [],
 	"author": "",
 	"license": "ISC",
+	"packageManager": "yarn@1.22.22",
 	"type": "commonjs",
 	"devDependencies": {
 		"@playwright/test": "^1.58.1",
+		"@types/node": "^25.3.3",
 		"ts-node": "^10.9.2",
 		"typescript": "^5.9.3"
 	},

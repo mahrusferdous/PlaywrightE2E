@@ -1,4 +1,5 @@
 import { Page, Locator } from "@playwright/test";
+import { appLocators } from "./locators";
 
 export class InventoryPage {
 	private page: Page;
@@ -7,13 +8,13 @@ export class InventoryPage {
 
 	constructor(page: Page) {
 		this.page = page;
-		this.inventoryItems = page.locator(".inventory_item");
-		this.cartBadge = page.locator(".shopping_cart_link");
+		this.inventoryItems = page.locator(appLocators.inventory.itemCard);
+		this.cartBadge = page.locator(appLocators.inventory.cartBadge);
 	}
 
 	async addItemByName(name: string) {
 		const item = this.inventoryItems.filter({ hasText: name });
-		await item.getByRole("button", { name: /add to cart/i }).click();
+		await item.getByRole("button", { name: appLocators.inventory.addToCartButtonName }).click();
 	}
 
 	async itemCount() {
@@ -23,6 +24,6 @@ export class InventoryPage {
 
 	async removeItemByName(name: string) {
 		const item = this.inventoryItems.filter({ hasText: name });
-		await item.getByRole("button", { name: /remove/i }).click();
+		await item.getByRole("button", { name: appLocators.inventory.removeButtonName }).click();
 	}
 }
