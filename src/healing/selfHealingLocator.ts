@@ -214,12 +214,34 @@ async function resolveValidSelector(
 	selector: string,
 	options: ResolveLocatorOptions,
 ): Promise<string | null> {
-	const html = await page.content();
+	if (page.isClosed()) {
+		verboseLog("Skipping selector healing because page is already closed", { keyPath, selector });
+		return null;
+	}
+
+	let html = "";
+	let currentUrl = "";
+	let pageTitle = "";
+
+	try {
+		html = await page.content();
+		currentUrl = page.url();
+		pageTitle = await page.title();
+	} catch (snapshotError) {
+		verboseLog("Failed to collect page snapshot for healing; skipping LLM request", {
+			keyPath,
+			selector,
+			error: snapshotError instanceof Error ? snapshotError.message : String(snapshotError),
+			pageClosed: page.isClosed(),
+		});
+		return null;
+	}
+
 	const prompt = {
 		keyPath,
 		failedSelector: selector,
-		currentUrl: page.url(),
-		pageTitle: await page.title(),
+		currentUrl,
+		pageTitle,
 		errorMessage: `Selector not found or not actionable: ${selector}`,
 		pageHtmlSnippet: buildFocusedHtmlSnippet(html, selector),
 	};

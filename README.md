@@ -65,6 +65,20 @@ Run commands from the `Playwright E2E` folder.
 npm run test
 ```
 
+Auto-rerun until locator healing stabilizes:
+
+```bash
+npm run test:heal
+```
+
+The healing runner forces `PLAYWRIGHT_HTML_OPEN=never` (unless already set) so failed runs do not block on the interactive HTML report.
+
+Pass Playwright filters through the healing runner:
+
+```bash
+npm run test:heal -- -g "Valid Login"
+```
+
 Headed mode:
 
 ```bash
@@ -93,6 +107,14 @@ npx playwright test -g "Cart Flow" --workers=1
 - Auto-healed overrides: `src/pages/locator-overrides.json`
 
 Set `AI_LOCATOR_AUTO_SAVE=false` if you want healing without file writes.
+
+Set `AI_HEALING_MAX_RERUNS` to control max reruns for `npm run test:heal` (default: `6`).
+
+If your suite needs more healing time, tune Playwright limits with:
+
+- `PLAYWRIGHT_TEST_TIMEOUT_MS` (default `90000`)
+- `PLAYWRIGHT_ACTION_TIMEOUT_MS` (default `15000`)
+- `PLAYWRIGHT_EXPECT_TIMEOUT_MS` (default `10000`)
 
 ## Docker (optional)
 

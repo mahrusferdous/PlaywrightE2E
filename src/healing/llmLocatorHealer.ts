@@ -14,7 +14,7 @@ export interface LocatorHealingPrompt {
 
 const DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434";
 const DEFAULT_OLLAMA_MODEL = "deepseek-coder:latest";
-const DEFAULT_OLLAMA_TIMEOUT_MS = 30000;
+const DEFAULT_OLLAMA_TIMEOUT_MS = 300000;
 
 export function isAiHealingEnabled() {
 	return process.env.AI_HEALING_ENABLED === "true";
