@@ -1,29 +1,35 @@
-import { Page, Locator } from "@playwright/test";
+import { Page } from "@playwright/test";
 import { appLocators } from "./locators";
+import { withSelfHealingLocator } from "../healing/selfHealingLocator";
 
 export class CartPage {
 	private page: Page;
-	private cart: Locator;
-	private cartItems: Locator;
-	private checkoutBtn: Locator;
 
 	constructor(page: Page) {
 		this.page = page;
-		this.cart = page.locator(appLocators.cart.cartLink);
-		this.cartItems = page.locator(appLocators.cart.cartItem);
-		this.checkoutBtn = page.locator(appLocators.cart.checkoutButton);
 	}
 
 	async goToCart() {
-		await this.cart.click();
+		await withSelfHealingLocator(this.page, "cart.cartLink", (locator) => locator.click(), {
+			description: "Cart link",
+		});
 	}
 
 	async removeItem(name: string) {
-		const item = this.cartItems.filter({ hasText: name });
-		await item.getByRole("button", { name: appLocators.cart.removeButtonName }).click();
+		await withSelfHealingLocator(
+			this.page,
+			"cart.cartItem",
+			async (cartItems) => {
+				const item = cartItems.filter({ hasText: name });
+				await item.getByRole("button", { name: appLocators.cart.removeButtonName }).click();
+			},
+			{ description: `Cart row for '${name}'` },
+		);
 	}
 
 	async checkout() {
-		await this.checkoutBtn.click();
+		await withSelfHealingLocator(this.page, "cart.checkoutButton", (locator) => locator.click(), {
+			description: "Checkout button",
+		});
 	}
 }

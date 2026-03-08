@@ -1,19 +1,12 @@
-import { Page, Locator } from "@playwright/test";
+import { Page } from "@playwright/test";
 import { appLocators } from "./locators";
+import { withSelfHealingLocator } from "../healing/selfHealingLocator";
 
 export class LoginPage {
 	private page: Page;
-	private username: Locator;
-	private password: Locator;
-	private btnLogin: Locator;
-	private errorMsg: Locator;
 
 	constructor(page: Page) {
 		this.page = page;
-		this.username = page.locator(appLocators.login.username);
-		this.password = page.locator(appLocators.login.password);
-		this.btnLogin = page.locator(appLocators.login.loginButton);
-		this.errorMsg = page.locator(appLocators.login.errorMessage);
 	}
 
 	async goto() {
@@ -21,12 +14,21 @@ export class LoginPage {
 	}
 
 	async login(username: string, password: string) {
-		await this.username.fill(username);
-		await this.password.fill(password);
-		await this.btnLogin.click();
+		await withSelfHealingLocator(this.page, "login.username", (locator) => locator.fill(username), {
+			description: "Login username field",
+		});
+		await withSelfHealingLocator(this.page, "login.password", (locator) => locator.fill(password), {
+			description: "Login password field",
+		});
+		await withSelfHealingLocator(this.page, "login.loginButton", (locator) => locator.click(), {
+			description: "Login button",
+		});
 	}
 
 	async getErrorMessage() {
-		return this.errorMsg.textContent();
+		return withSelfHealingLocator(this.page, "login.errorMessage", (locator) => locator.textContent(), {
+			description: "Login error message",
+			requireVisible: false,
+		});
 	}
 }

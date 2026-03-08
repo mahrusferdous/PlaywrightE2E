@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 // playwright.config.ts
 import { defineConfig } from "@playwright/test";
 

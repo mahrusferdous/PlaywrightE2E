@@ -23,8 +23,8 @@ test("Checkout Flow", async ({ page }) => {
 	await checkout.fillCheckoutForm("John", "Doe", "12345");
 	await checkout.finishOrder();
 
-	await expect(page.locator(".complete-header")).toHaveText("Thank you for your order!");
-	await expect(page.locator(".complete-text")).toHaveText(
+	await expect(checkout.getCompleteHeaderText()).resolves.toContain("Thank you for your order!");
+	await expect(checkout.getCompleteText()).resolves.toContain(
 		"Your order has been dispatched, and will arrive just as fast as the pony can get there!",
 	);
 

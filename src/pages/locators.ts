@@ -5,7 +5,7 @@ export const appLocators = {
 	login: {
 		username: "#user-name",
 		password: "#password",
-		loginButton: "#login-button",
+		loginButton: "#login-button_broken",
 		errorMessage: "data-test=error",
 	},
 	inventory: {
@@ -26,6 +26,8 @@ export const appLocators = {
 		postalCode: "#postal-code",
 		continueButton: "#continue",
 		finishButton: "#finish",
-		backToProductsButton: "#back-to-products",
+		backToProductsButton: "#back-to-products-broken",
+		completeHeader: ".complete-header-broken",
+		completeText: ".complete-text-broken",
 	},
 };
