@@ -1,6 +1,11 @@
 import type { Locator, Page } from "@playwright/test";
 import { getLocatorOverridesPath, getLocatorValue, setLocatorValue } from "./locatorStore";
-import { isAiHealingEnabled, isAiHealingVerbose, requestSelectorCandidates } from "./llmLocatorHealer";
+import {
+	isAiHealingEnabled,
+	isAiHealingLiveLogEnabled,
+	isAiHealingVerbose,
+	requestSelectorCandidates,
+} from "./llmLocatorHealer";
 
 interface HealingActionOptions {
 	description?: string;
@@ -23,6 +28,19 @@ function verboseLog(message: string, data?: unknown) {
 	}
 
 	console.info(`[AI-Heal][Verbose] ${message}`, data);
+}
+
+function liveLog(message: string, data?: unknown) {
+	if (!isAiHealingLiveLogEnabled()) {
+		return;
+	}
+
+	if (data === undefined) {
+		console.info(`[AI-Heal][Live] ${message}`);
+		return;
+	}
+
+	console.info(`[AI-Heal][Live] ${message}`, data);
 }
 
 function looksLikeLocatorFailure(error: unknown): boolean {
@@ -251,9 +269,12 @@ export async function withSelfHealingLocator<T>(
 		selector,
 		description: options.description,
 	});
+	liveLog("Action start", { keyPath, selector, description: options.description });
 
 	try {
-		return await action(page.locator(selector));
+		const result = await action(page.locator(selector));
+		liveLog("Action succeeded without LLM healing", { keyPath, selector });
+		return result;
 	} catch (initialError) {
 		verboseLog("Initial selector action failed", {
 			keyPath,
@@ -261,6 +282,11 @@ export async function withSelfHealingLocator<T>(
 			error: initialError instanceof Error ? initialError.message : String(initialError),
 		});
 		if (!isAiHealingEnabled() || !looksLikeLocatorFailure(initialError)) {
+			liveLog("LLM healing skipped", {
+				keyPath,
+				healingEnabled: isAiHealingEnabled(),
+				isLocatorFailure: looksLikeLocatorFailure(initialError),
+			});
 			verboseLog("Healing not attempted", {
 				healingEnabled: isAiHealingEnabled(),
 				isLocatorFailure: looksLikeLocatorFailure(initialError),
@@ -268,12 +294,23 @@ export async function withSelfHealingLocator<T>(
 			throw initialError;
 		}
 
+		liveLog("LLM healing triggered", {
+			keyPath,
+			failedSelector: selector,
+			error: initialError instanceof Error ? initialError.message : String(initialError),
+		});
+
 		const validSelector = await resolveValidSelector(page, keyPath, selector, {
 			...options,
 			validateOnResolve: true,
 		});
 
 		if (!validSelector || validSelector === selector) {
+			liveLog("LLM healing produced no better selector", {
+				keyPath,
+				validSelector,
+				originalSelector: selector,
+			});
 			verboseLog("No improved selector produced", {
 				keyPath,
 				validSelector,
@@ -285,11 +322,21 @@ export async function withSelfHealingLocator<T>(
 		try {
 			const healedResult = await action(page.locator(validSelector));
 			setLocatorValue(keyPath, validSelector);
+			liveLog("LLM healing applied", {
+				keyPath,
+				from: selector,
+				to: validSelector,
+			});
 			console.info(
 				`[AI-Heal] ${options.description ?? keyPath}: '${selector}' -> '${validSelector}' (saved in ${getLocatorOverridesPath()})`,
 			);
 			return healedResult;
 		} catch (healedActionError) {
+			liveLog("LLM healed selector failed during action", {
+				keyPath,
+				selector: validSelector,
+				error: healedActionError instanceof Error ? healedActionError.message : String(healedActionError),
+			});
 			verboseLog("Healed selector failed during action execution", {
 				keyPath,
 				validSelector,

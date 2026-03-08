@@ -36,6 +36,7 @@ ollama list
 AI_HEALING_BASE_URL=http://127.0.0.1:11434
 AI_HEALING_MODEL=deepseek-coder:latest
 AI_HEALING_VERBOSE=false
+AI_HEALING_LIVE_LLM_LOG=false
 AI_HEALING_USE_PROJECT_CONTEXT=true
 AI_HEALING_PROJECT_CONTEXT_DIR=../sample-app-web/src
 ```
@@ -45,6 +46,14 @@ To see detailed healing activity in terminal logs, set:
 ```env
 AI_HEALING_VERBOSE=true
 ```
+
+To see live request/response communication with Ollama while healing is happening, set:
+
+```env
+AI_HEALING_LIVE_LLM_LOG=true
+```
+
+When this is enabled, console logs also show whether LLM healing was triggered or skipped (for example when the current selector already works from `locator-overrides.json`).
 
 `AI_HEALING_USE_PROJECT_CONTEXT=true` lets healing read source hints from `sample-app-web` (or any path set in `AI_HEALING_PROJECT_CONTEXT_DIR`) and combine them with the live DOM before asking Ollama.
 

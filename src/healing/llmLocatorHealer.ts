@@ -1,4 +1,5 @@
 import axios from "axios";
+import type { Readable } from "node:stream";
 import { getProjectContextSnippet } from "./projectContextReader";
 
 export interface LocatorHealingPrompt {
@@ -13,6 +14,7 @@ export interface LocatorHealingPrompt {
 
 const DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434";
 const DEFAULT_OLLAMA_MODEL = "deepseek-coder:latest";
+const DEFAULT_OLLAMA_TIMEOUT_MS = 30000;
 
 export function isAiHealingEnabled() {
 	return process.env.AI_HEALING_ENABLED === "true";
@@ -20,6 +22,10 @@ export function isAiHealingEnabled() {
 
 export function isAiHealingVerbose() {
 	return process.env.AI_HEALING_VERBOSE === "true";
+}
+
+export function isAiHealingLiveLogEnabled() {
+	return process.env.AI_HEALING_LIVE_LLM_LOG === "true";
 }
 
 function verboseLog(message: string, data?: unknown) {
@@ -33,6 +39,27 @@ function verboseLog(message: string, data?: unknown) {
 	}
 
 	console.info(`[AI-Heal][Verbose] ${message}`, data);
+}
+
+function liveLog(message: string, data?: unknown) {
+	if (!isAiHealingLiveLogEnabled()) {
+		return;
+	}
+
+	if (data === undefined) {
+		console.info(`[AI-Heal][Live] ${message}`);
+		return;
+	}
+
+	console.info(`[AI-Heal][Live] ${message}`, data);
+}
+
+function truncateForLog(value: string, maxLength = 2500): string {
+	if (value.length <= maxLength) {
+		return value;
+	}
+
+	return `${value.slice(0, maxLength)}\n...<truncated ${value.length - maxLength} chars>`;
 }
 
 function extractMessageContent(raw: unknown): string {
@@ -236,9 +263,125 @@ function getUserPrompt(prompt: LocatorHealingPrompt) {
 	return sections.join("\n");
 }
 
+function buildOllamaPayload(prompt: LocatorHealingPrompt, stream: boolean) {
+	return {
+		model: process.env.AI_HEALING_MODEL ?? DEFAULT_OLLAMA_MODEL,
+		stream,
+		options: {
+			temperature: 0,
+		},
+		messages: [
+			{ role: "system", content: getSystemPrompt() },
+			{ role: "user", content: getUserPrompt(prompt) },
+		],
+	};
+}
+
+function logLiveRequestPreview(baseUrl: string, payload: ReturnType<typeof buildOllamaPayload>, stream: boolean) {
+	liveLog("Request dispatch", {
+		endpoint: `${baseUrl}/api/chat`,
+		model: payload.model,
+		stream,
+	});
+	liveLog("TX system prompt", truncateForLog(payload.messages[0].content));
+	liveLog("TX user prompt", truncateForLog(payload.messages[1].content));
+}
+
+async function requestFromOllamaStreaming(baseUrl: string, prompt: LocatorHealingPrompt): Promise<string> {
+	const payload = buildOllamaPayload(prompt, true);
+	logLiveRequestPreview(baseUrl, payload, true);
+	liveLog("RX stream start");
+
+	const response = await axios.post(`${baseUrl}/api/chat`, payload, {
+		headers: {
+			"Content-Type": "application/json",
+		},
+		responseType: "stream",
+		timeout: DEFAULT_OLLAMA_TIMEOUT_MS,
+	});
+
+	const stream = response.data as Readable;
+	let buffer = "";
+	let fullContent = "";
+
+	const flushLine = (line: string) => {
+		if (!line.trim()) {
+			return;
+		}
+
+		try {
+			const parsed = JSON.parse(line) as {
+				message?: { content?: unknown };
+				done?: boolean;
+				error?: unknown;
+			};
+
+			if (parsed.error) {
+				liveLog("RX error", parsed.error);
+			}
+
+			const token = extractMessageContent(parsed.message?.content);
+			if (token) {
+				fullContent += token;
+				process.stdout.write(token);
+			}
+
+			if (parsed.done) {
+				process.stdout.write("\n");
+				liveLog("RX stream complete");
+			}
+		} catch {
+			liveLog("RX non-json chunk", truncateForLog(line, 600));
+		}
+	};
+
+	for await (const chunk of stream) {
+		buffer += chunk.toString("utf8");
+		let newLineIndex = buffer.indexOf("\n");
+		while (newLineIndex !== -1) {
+			const line = buffer.slice(0, newLineIndex);
+			buffer = buffer.slice(newLineIndex + 1);
+			flushLine(line);
+			newLineIndex = buffer.indexOf("\n");
+		}
+	}
+
+	if (buffer.trim()) {
+		flushLine(buffer);
+	}
+
+	return fullContent;
+}
+
+async function requestFromOllamaNonStreaming(
+	baseUrl: string,
+	prompt: LocatorHealingPrompt,
+	enableLiveLogs: boolean,
+): Promise<string> {
+	const payload = buildOllamaPayload(prompt, false);
+	if (enableLiveLogs) {
+		logLiveRequestPreview(baseUrl, payload, false);
+	}
+
+	const response = await axios.post(`${baseUrl}/api/chat`, payload, {
+		headers: {
+			"Content-Type": "application/json",
+		},
+		timeout: DEFAULT_OLLAMA_TIMEOUT_MS,
+	});
+
+	const messageContent = extractMessageContent(response.data?.message?.content);
+	if (enableLiveLogs) {
+		liveLog("RX non-stream response", truncateForLog(messageContent, 4000));
+	}
+
+	return messageContent;
+}
+
 async function requestFromOllama(prompt: LocatorHealingPrompt): Promise<string[]> {
 	const baseUrl = (process.env.AI_HEALING_BASE_URL ?? DEFAULT_OLLAMA_BASE_URL).replace(/\/$/, "");
 	const model = process.env.AI_HEALING_MODEL ?? DEFAULT_OLLAMA_MODEL;
+	const liveLogEnabled = isAiHealingLiveLogEnabled();
 	verboseLog("Dispatching Ollama request", {
 		keyPath: prompt.keyPath,
 		failedSelector: prompt.failedSelector,
@@ -249,28 +392,20 @@ async function requestFromOllama(prompt: LocatorHealingPrompt): Promise<string[]
 		projectContextLength: prompt.projectContextSnippet?.length ?? 0,
 	});
 
-	const response = await axios.post(
-		`${baseUrl}/api/chat`,
-		{
-			model,
-			stream: false,
-			options: {
-				temperature: 0,
-			},
-			messages: [
-				{ role: "system", content: getSystemPrompt() },
-				{ role: "user", content: getUserPrompt(prompt) },
-			],
-		},
-		{
-			headers: {
-				"Content-Type": "application/json",
-			},
-			timeout: 30000,
-		},
-	);
+	let messageContent = "";
+	if (liveLogEnabled) {
+		try {
+			messageContent = await requestFromOllamaStreaming(baseUrl, prompt);
+		} catch (streamError) {
+			liveLog("Streaming request failed; retrying in non-stream mode", {
+				error: streamError instanceof Error ? streamError.message : String(streamError),
+			});
+			messageContent = await requestFromOllamaNonStreaming(baseUrl, prompt, true);
+		}
+	} else {
+		messageContent = await requestFromOllamaNonStreaming(baseUrl, prompt, false);
+	}
 
-	const messageContent = extractMessageContent(response.data?.message?.content);
 	verboseLog("Raw Ollama response content", messageContent.slice(0, 1200));
 	const selectors = parseSelectors(messageContent);
 	const fallbackSelectors = generateFallbackSelectors(prompt);
