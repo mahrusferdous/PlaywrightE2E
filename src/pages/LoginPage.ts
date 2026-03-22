@@ -2,6 +2,9 @@ import { Page } from "@playwright/test";
 import { appLocators } from "./locators";
 import { withSelfHealingLocator } from "../healing/selfHealingLocator";
 
+/**
+ * Encapsulates all user interactions on the SauceDemo login screen.
+ */
 export class LoginPage {
 	private page: Page;
 

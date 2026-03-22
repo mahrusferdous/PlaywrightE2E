@@ -2,6 +2,9 @@ import { Page } from "@playwright/test";
 import { appLocators } from "./locators";
 import { withSelfHealingLocator } from "../healing/selfHealingLocator";
 
+/**
+ * Encapsulates checkout form, overview, and completion screen interactions.
+ */
 export class CheckoutPage {
 	private page: Page;
 

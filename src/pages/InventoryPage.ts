@@ -2,6 +2,9 @@ import { Page } from "@playwright/test";
 import { appLocators } from "./locators";
 import { withSelfHealingLocator } from "../healing/selfHealingLocator";
 
+/**
+ * Encapsulates user interactions on the product inventory screen.
+ */
 export class InventoryPage {
 	private page: Page;
 

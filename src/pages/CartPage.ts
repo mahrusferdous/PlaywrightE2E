@@ -2,6 +2,9 @@ import { Page } from "@playwright/test";
 import { appLocators } from "./locators";
 import { withSelfHealingLocator } from "../healing/selfHealingLocator";
 
+/**
+ * Encapsulates shopping cart interactions and cart-level actions.
+ */
 export class CartPage {
 	private page: Page;
 
