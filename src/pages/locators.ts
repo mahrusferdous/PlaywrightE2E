@@ -11,19 +11,19 @@ export const appLocators = {
 	login: {
 		username: "#user-name",
 		password: "#password",
-		loginButton: "#login-button_broken",
+		loginButton: "#login-button",
 		errorMessage: "data-test=error",
 	},
 	inventory: {
-		itemCard: ".inventory_item",
+		itemCard: ".inventory_item_broken",
 		cartBadge: ".shopping_cart_link",
 		addToCartButtonName: /add to cart/i,
 		removeButtonName: /remove/i,
 	},
 	cart: {
-		cartLink: ".shopping_cart_link",
+		cartLink: ".shopping_cart_link_broken",
 		cartItem: ".cart_item",
-		checkoutButton: "#checkout",
+		checkoutButton: "#checkout_broken",
 		removeButtonName: /remove/i,
 	},
 	checkout: {
@@ -31,9 +31,9 @@ export const appLocators = {
 		lastName: "#last-name",
 		postalCode: "#postal-code",
 		continueButton: "#continue",
-		finishButton: "#finish",
-		backToProductsButton: "#back-to-products-broken",
-		completeHeader: ".complete-header-broken",
-		completeText: ".complete-text-broken",
+		finishButton: "#finish_broken",
+		backToProductsButton: "#back-to-products",
+		completeHeader: ".complete-header",
+		completeText: ".complete-text",
 	},
 };

@@ -1,6 +1,1 @@
-{
-  "login.loginButton": "#login-button",
-  "checkout.completeHeader": ".complete-header",
-  "checkout.completeText": ".complete-text",
-  "checkout.backToProductsButton": "#back-to-products"
-}
+{}

@@ -1,4 +1,4 @@
-import type { Locator, Page } from "@playwright/test";
+import { test, type Locator, type Page } from "@playwright/test";
 import { getLocatorOverridesPath, getLocatorValue, setLocatorValue } from "./locatorStore";
 import {
 	type LocatorHealingPrompt,
@@ -13,6 +13,8 @@ interface HealingActionOptions {
 	description?: string;
 	requireVisible?: boolean;
 	maxCandidates?: number;
+	actionTimeoutMs?: number;
+	extendTestTimeoutMs?: number;
 }
 
 interface ResolveLocatorOptions extends HealingActionOptions {
@@ -38,6 +40,8 @@ interface DomCandidate {
 
 const DEFAULT_MAX_VALIDATION_CANDIDATES = 3;
 const DEFAULT_MAX_DOM_CANDIDATES = 12;
+const DEFAULT_HEALING_ACTION_TIMEOUT_MS = 15000;
+const DEFAULT_HEALING_TIMEOUT_EXTENSION_MS = 60000;
 const GENERIC_INTENT_TOKENS = new Set([
 	"button",
 	"link",
@@ -85,6 +89,98 @@ function liveLog(message: string, data?: unknown) {
 	}
 
 	console.info(`[AI-Heal][Live] ${message}`, data);
+}
+
+/**
+ * Returns the temporary timeout budget for a single action attempt.
+ */
+function getHealingActionTimeoutMs(override?: number): number {
+	if (typeof override === "number" && override >= 0) {
+		return override;
+	}
+
+	const parsed = Number.parseInt(process.env.AI_HEALING_ACTION_TIMEOUT_MS ?? "", 10);
+	if (Number.isFinite(parsed) && parsed >= 0) {
+		return parsed;
+	}
+
+	return DEFAULT_HEALING_ACTION_TIMEOUT_MS;
+}
+
+/**
+ * Returns the amount of extra time added to the test once healing starts.
+ */
+function getHealingTimeoutExtensionMs(override?: number): number {
+	if (typeof override === "number" && override >= 0) {
+		return override;
+	}
+
+	const parsed = Number.parseInt(process.env.AI_HEALING_TEST_TIMEOUT_EXTENSION_MS ?? "", 10);
+	if (Number.isFinite(parsed) && parsed >= 0) {
+		return parsed;
+	}
+
+	return DEFAULT_HEALING_TIMEOUT_EXTENSION_MS;
+}
+
+/**
+ * Returns the configured default Playwright action timeout after healing completes.
+ */
+function getConfiguredActionTimeoutMs(): number {
+	const parsed = Number.parseInt(process.env.PLAYWRIGHT_ACTION_TIMEOUT_MS ?? "0", 10);
+	if (Number.isFinite(parsed) && parsed >= 0) {
+		return parsed;
+	}
+
+	return 0;
+}
+
+/**
+ * Runs an action under a temporary page default timeout so healing can start before the whole test expires.
+ */
+async function runActionWithTimeoutBudget<T>(
+	page: Page,
+	locator: Locator,
+	action: (locator: Locator) => Promise<T>,
+	actionTimeoutMs: number,
+): Promise<T> {
+	if (actionTimeoutMs <= 0) {
+		return action(locator);
+	}
+
+	page.setDefaultTimeout(actionTimeoutMs);
+	try {
+		return await action(locator);
+	} finally {
+		page.setDefaultTimeout(getConfiguredActionTimeoutMs());
+	}
+}
+
+/**
+ * Adds more time to the currently running Playwright test so healing can complete.
+ */
+function extendCurrentTestTimeout(extraMs: number, keyPath: string, selector: string) {
+	if (extraMs <= 0) {
+		return;
+	}
+
+	try {
+		const testInfo = test.info();
+		const nextTimeout = testInfo.timeout + extraMs;
+		testInfo.setTimeout(nextTimeout);
+		liveLog("Extended current test timeout for healing", {
+			keyPath,
+			selector,
+			extraMs,
+			newTimeoutMs: nextTimeout,
+		});
+	} catch (error) {
+		verboseLog("Unable to extend current test timeout", {
+			keyPath,
+			selector,
+			error: error instanceof Error ? error.message : String(error),
+		});
+	}
 }
 
 /**
@@ -647,11 +743,6 @@ async function resolveValidSelector(
 	options: ResolveLocatorOptions,
 	failureError?: unknown,
 ): Promise<string | null> {
-	const failure = await captureFailureContext(page, keyPath, selector, failureError ?? "Locator action failed");
-	if (!failure) {
-		return null;
-	}
-
 	const intentTokens = getIntentTokens(keyPath, selector);
 	const directRepairCandidates = generateDirectRepairCandidates(selector);
 	const directRepairMatch = await findValidSelector(
@@ -662,6 +753,11 @@ async function resolveValidSelector(
 	);
 	if (directRepairMatch) {
 		return directRepairMatch;
+	}
+
+	const failure = await captureFailureContext(page, keyPath, selector, failureError ?? "Locator action failed");
+	if (!failure) {
+		return null;
 	}
 
 	const domCandidates = await collectDomSelectorCandidates(page, keyPath, selector, options);
@@ -760,15 +856,17 @@ export async function withSelfHealingLocator<T>(
 	options: HealingActionOptions = {},
 ): Promise<T> {
 	const selector = getLocatorValue(keyPath);
+	const actionTimeoutMs = getHealingActionTimeoutMs(options.actionTimeoutMs);
 	verboseLog("Executing action with selector", {
 		keyPath,
 		selector,
 		description: options.description,
+		actionTimeoutMs,
 	});
-	liveLog("Action start", { keyPath, selector, description: options.description });
+	liveLog("Action start", { keyPath, selector, description: options.description, actionTimeoutMs });
 
 	try {
-		const result = await action(page.locator(selector));
+		const result = await runActionWithTimeoutBudget(page, page.locator(selector), action, actionTimeoutMs);
 		liveLog("Action succeeded without LLM healing", { keyPath, selector });
 		return result;
 	} catch (initialError) {
@@ -789,6 +887,8 @@ export async function withSelfHealingLocator<T>(
 			});
 			throw initialError;
 		}
+
+		extendCurrentTestTimeout(getHealingTimeoutExtensionMs(options.extendTestTimeoutMs), keyPath, selector);
 
 		liveLog("LLM healing triggered", {
 			keyPath,
@@ -816,7 +916,7 @@ export async function withSelfHealingLocator<T>(
 		}
 
 		try {
-			const healedResult = await action(page.locator(validSelector));
+			const healedResult = await runActionWithTimeoutBudget(page, page.locator(validSelector), action, actionTimeoutMs);
 			setLocatorValue(keyPath, validSelector);
 			liveLog("LLM healing applied", {
 				keyPath,

@@ -4,7 +4,8 @@
 	"description": "",
 	"main": "index.js",
 	"scripts": {
-		"test": "playwright test",
+		"test": "node scripts/healUntilStable.js",
+		"test:raw": "playwright test",
 		"test:heal": "node scripts/healUntilStable.js",
 		"test:headed": "playwright test --headed",
 		"test:report": "playwright show-report"
