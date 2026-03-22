@@ -5,9 +5,13 @@ import { getProjectContextSnippet } from "./projectContextReader";
 export interface LocatorHealingPrompt {
 	keyPath: string;
 	failedSelector: string;
+	expectedPage: string;
+	currentPage: string;
+	currentPageReason: string;
 	currentUrl: string;
 	pageTitle: string;
 	errorMessage: string;
+	uiTextSnippet: string;
 	pageHtmlSnippet: string;
 	projectContextSnippet?: string;
 }
@@ -15,6 +19,13 @@ export interface LocatorHealingPrompt {
 const DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434";
 const DEFAULT_OLLAMA_MODEL = "deepseek-coder:latest";
 const DEFAULT_OLLAMA_TIMEOUT_MS = 300000;
+const NON_SELECTOR_REPLY_PATTERNS = [
+	"it seems like you've posted",
+	"i can only provide assistance",
+	"could you please specify",
+	"what exactly needs help",
+	"how can i assist",
+];
 
 export function isAiHealingEnabled() {
 	return process.env.AI_HEALING_ENABLED === "true";
@@ -268,28 +279,60 @@ function parseSelectors(content: string): string[] {
 }
 
 /**
+ * Detects assistant-style prose responses that ignore the selector-only contract.
+ */
+function looksLikeNonSelectorReply(content: string): boolean {
+	const normalized = content.toLowerCase();
+	return NON_SELECTOR_REPLY_PATTERNS.some((pattern) => normalized.includes(pattern));
+}
+
+/**
  * Returns the system prompt used for selector healing.
  */
-function getSystemPrompt() {
-	return 'You repair broken Playwright selectors. Return ONLY valid JSON in this shape: {"selectors":["selector1","selector2"]}. Do not include markdown or explanations.';
+function getSystemPrompt(repairMode = false) {
+	const modeInstruction = repairMode
+		? "The previous answer was invalid because it contained prose or help text. Repair it now."
+		: "Your task is selector repair only.";
+
+	return [
+		"You repair broken Playwright selectors for automated tests.",
+		modeInstruction,
+		"Never ask questions.",
+		"Never explain the UI.",
+		"Never provide troubleshooting advice.",
+		"Never say you need more context.",
+		'Return ONLY compact JSON using exactly this schema: {"selectors":["selector1","selector2","selector3"]}',
+		"Each array item must be a single Playwright selector string.",
+		"Do not wrap the JSON in markdown.",
+	].join(" ");
 }
 
 /**
  * Builds the user prompt for a locator healing request.
  */
-function getUserPrompt(prompt: LocatorHealingPrompt) {
+function getUserPrompt(prompt: LocatorHealingPrompt, repairMode = false) {
 	const sections = [
-		"Generate replacement selector candidates for this broken Playwright locator.",
+		repairMode
+			? "Regenerate the answer as selectors only. Your previous response was invalid because it was not JSON selector output."
+			: "Generate replacement selector candidates for this broken Playwright locator.",
 		`keyPath: ${prompt.keyPath}`,
 		`failedSelector: ${prompt.failedSelector}`,
+		`expectedPage: ${prompt.expectedPage}`,
+		`currentPage: ${prompt.currentPage}`,
+		`currentPageReason: ${prompt.currentPageReason}`,
 		`currentUrl: ${prompt.currentUrl}`,
 		`pageTitle: ${prompt.pageTitle}`,
 		`errorMessage: ${prompt.errorMessage}`,
 		"Constraints:",
+		"- Only suggest selectors that make sense for the expected page and current page context.",
 		"- Prefer stable attributes (data-test, data-testid, id, name, aria-label).",
+		"- Prefer role, label, placeholder, and text-based selectors when they are stable in the visible UI.",
 		"- Avoid nth-child and fragile positional selectors.",
 		"- Return 3 to 6 candidates in best-first order.",
+		"- Every selector must target the same UI element intent as the failed locator.",
+		"- If the page contains visible button or heading text for the target, use that text in selector candidates when stable.",
 		'No prose. Return JSON ONLY using exactly: {"selectors":["..."]}',
+		'Example valid output: {"selectors":["#login-button","button:has-text(\\"Login\\")","[data-test=\\"login-button\\"]"]}',
 	] as string[];
 
 	if (prompt.projectContextSnippet) {
@@ -297,6 +340,7 @@ function getUserPrompt(prompt: LocatorHealingPrompt) {
 		sections.push(prompt.projectContextSnippet);
 	}
 
+	sections.push("Visible UI text snippet:", prompt.uiTextSnippet);
 	sections.push("DOM snippet:", prompt.pageHtmlSnippet);
 
 	return sections.join("\n");
@@ -305,7 +349,7 @@ function getUserPrompt(prompt: LocatorHealingPrompt) {
 /**
  * Builds Ollama chat payload for streaming or non-streaming requests.
  */
-function buildOllamaPayload(prompt: LocatorHealingPrompt, stream: boolean) {
+function buildOllamaPayload(prompt: LocatorHealingPrompt, stream: boolean, repairMode = false) {
 	return {
 		model: process.env.AI_HEALING_MODEL ?? DEFAULT_OLLAMA_MODEL,
 		stream,
@@ -313,8 +357,8 @@ function buildOllamaPayload(prompt: LocatorHealingPrompt, stream: boolean) {
 			temperature: 0,
 		},
 		messages: [
-			{ role: "system", content: getSystemPrompt() },
-			{ role: "user", content: getUserPrompt(prompt) },
+			{ role: "system", content: getSystemPrompt(repairMode) },
+			{ role: "user", content: getUserPrompt(prompt, repairMode) },
 		],
 	};
 }
@@ -335,8 +379,12 @@ function logLiveRequestPreview(baseUrl: string, payload: ReturnType<typeof build
 /**
  * Sends a streaming request to Ollama and collects streamed content.
  */
-async function requestFromOllamaStreaming(baseUrl: string, prompt: LocatorHealingPrompt): Promise<string> {
-	const payload = buildOllamaPayload(prompt, true);
+async function requestFromOllamaStreaming(
+	baseUrl: string,
+	prompt: LocatorHealingPrompt,
+	repairMode = false,
+): Promise<string> {
+	const payload = buildOllamaPayload(prompt, true, repairMode);
 	logLiveRequestPreview(baseUrl, payload, true);
 	liveLog("RX stream start");
 
@@ -408,8 +456,9 @@ async function requestFromOllamaNonStreaming(
 	baseUrl: string,
 	prompt: LocatorHealingPrompt,
 	enableLiveLogs: boolean,
+	repairMode = false,
 ): Promise<string> {
-	const payload = buildOllamaPayload(prompt, false);
+	const payload = buildOllamaPayload(prompt, false, repairMode);
 	if (enableLiveLogs) {
 		logLiveRequestPreview(baseUrl, payload, false);
 	}
@@ -442,7 +491,10 @@ async function requestFromOllama(prompt: LocatorHealingPrompt): Promise<string[]
 		baseUrl,
 		model,
 		currentUrl: prompt.currentUrl,
+		expectedPage: prompt.expectedPage,
+		currentPage: prompt.currentPage,
 		htmlSnippetLength: prompt.pageHtmlSnippet.length,
+		uiTextLength: prompt.uiTextSnippet.length,
 		projectContextLength: prompt.projectContextSnippet?.length ?? 0,
 	});
 
@@ -458,6 +510,17 @@ async function requestFromOllama(prompt: LocatorHealingPrompt): Promise<string[]
 		}
 	} else {
 		messageContent = await requestFromOllamaNonStreaming(baseUrl, prompt, false);
+	}
+
+	if (looksLikeNonSelectorReply(messageContent) || parseSelectors(messageContent).length === 0) {
+		verboseLog("LLM returned non-selector prose or empty output; retrying with repair prompt", {
+			keyPath: prompt.keyPath,
+			preview: messageContent.slice(0, 500),
+		});
+
+		messageContent = liveLogEnabled
+			? await requestFromOllamaNonStreaming(baseUrl, prompt, true, true)
+			: await requestFromOllamaNonStreaming(baseUrl, prompt, false, true);
 	}
 
 	verboseLog("Raw Ollama response content", messageContent.slice(0, 1200));
