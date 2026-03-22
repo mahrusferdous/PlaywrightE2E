@@ -1,0 +1,506 @@
+PS C:\Apps & Workspace\Workspace\Playwright E2E> npm run test
+
+> playwright-e2e@1.0.0 test
+> node scripts/healUntilStable.js
+
+[AI-Heal] Run 1/12
+
+Running 5 tests using 4 workers
+
+     1 src\tests\login.spec.ts:5:6 › Login Tests › Valid Login
+     2 src\tests\checkout.spec.ts:7:5 › Checkout Flow
+     3 src\tests\inventory.spec.ts:5:5 › Add Items to Cart
+     4 src\tests\cart.spec.ts:6:5 › Cart Flow
+[AI-Heal][Live] Action start {
+  keyPath: 'login.username',
+  selector: '#user-name',
+  description: 'Login username field',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action start {
+  keyPath: 'login.username',
+  selector: '#user-name',
+  description: 'Login username field',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action start {
+  keyPath: 'login.username',
+  selector: '#user-name',
+  description: 'Login username field',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'login.username', selector: '#user-name' }
+[AI-Heal][Live] Action start {
+  keyPath: 'login.password',
+  selector: '#password',
+  description: 'Login password field',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action start {
+  keyPath: 'login.username',
+  selector: '#user-name',
+  description: 'Login username field',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'login.username', selector: '#user-name' }
+[AI-Heal][Live] Action start {
+  keyPath: 'login.password',
+  selector: '#password',
+  description: 'Login password field',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'login.username', selector: '#user-name' }
+[AI-Heal][Live] Action start {
+  keyPath: 'login.password',
+  selector: '#password',
+  description: 'Login password field',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'login.password', selector: '#password' }
+[AI-Heal][Live] Action start {
+  keyPath: 'login.loginButton',
+  selector: '#login-button',
+  description: 'Login button',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'login.password', selector: '#password' }
+[AI-Heal][Live] Action start {
+  keyPath: 'login.loginButton',
+  selector: '#login-button',
+  description: 'Login button',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'login.password', selector: '#password' }
+[AI-Heal][Live] Action start {
+  keyPath: 'login.loginButton',
+  selector: '#login-button',
+  description: 'Login button',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'login.username', selector: '#user-name' }
+[AI-Heal][Live] Action start {
+  keyPath: 'login.password',
+  selector: '#password',
+  description: 'Login password field',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'login.password', selector: '#password' }
+[AI-Heal][Live] Action start {
+  keyPath: 'login.loginButton',
+  selector: '#login-button',
+  description: 'Login button',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'login.loginButton', selector: '#login-button' }
+[AI-Heal][Live] Action start {
+  keyPath: 'inventory.itemCard',
+  selector: '.inventory_item_broken',
+  description: "Inventory card for 'Sauce Labs Bike Light'",
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'login.loginButton', selector: '#login-button' }
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'login.loginButton', selector: '#login-button' }
+[AI-Heal][Live] Action start {
+  keyPath: 'inventory.itemCard',
+  selector: '.inventory_item_broken',
+  description: "Inventory card for 'Sauce Labs Backpack'",
+  actionTimeoutMs: 15000
+}
+  ✓  1 src\tests\login.spec.ts:5:6 › Login Tests › Valid Login (1.7s)
+     5 src\tests\login.spec.ts:12:6 › Login Tests › Invalid Login Shows Error
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'login.loginButton', selector: '#login-button' }
+[AI-Heal][Live] Action start {
+  keyPath: 'inventory.itemCard',
+  selector: '.inventory_item_broken',
+  description: "Inventory card for 'Sauce Labs Backpack'",
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action start {
+  keyPath: 'login.username',
+  selector: '#user-name',
+  description: 'Login username field',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'login.username', selector: '#user-name' }
+[AI-Heal][Live] Action start {
+  keyPath: 'login.password',
+  selector: '#password',
+  description: 'Login password field',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'login.password', selector: '#password' }
+[AI-Heal][Live] Action start {
+  keyPath: 'login.loginButton',
+  selector: '#login-button',
+  description: 'Login button',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'login.loginButton', selector: '#login-button' }
+[AI-Heal][Live] Action start {
+  keyPath: 'login.errorMessage',
+  selector: 'data-test=error',
+  description: 'Login error message',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'login.errorMessage', selector: 'data-test=error' }
+  ✓  5 src\tests\login.spec.ts:12:6 › Login Tests › Invalid Login Shows Error (715ms)
+[AI-Heal][Live] Extended current test timeout for healing {
+  keyPath: 'inventory.itemCard',
+  selector: '.inventory_item_broken',
+  extraMs: 60000,
+  newTimeoutMs: 150000
+}
+[AI-Heal][Live] LLM healing triggered {
+  keyPath: 'inventory.itemCard',
+  failedSelector: '.inventory_item_broken',
+  error: 'locator.click: Timeout 15000ms exceeded.\n' +
+    'Call log:\n' +
+    "\x1B[2m  - waiting for locator('.inventory_item_broken').filter({ hasText: 'Sauce Labs Bike Light' }).getByRole('button', { name: /add to cart/i })\x1B[22m\n"
+}
+[AI-Heal][Live] LLM healing applied {
+  keyPath: 'inventory.itemCard',
+  from: '.inventory_item_broken',
+  to: '.inventory_item'
+}
+[AI-Heal] Inventory card for 'Sauce Labs Bike Light': '.inventory_item_broken' -> '.inventory_item' (saved in C:\Apps & Workspace\Workspace\Playwright E2E\src\pages\locator-overrides.json)
+[AI-Heal][Live] Action start {
+  keyPath: 'inventory.itemCard',
+  selector: '.inventory_item',
+  description: "Inventory card for 'Sauce Labs Bolt T-Shirt'",
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'inventory.itemCard', selector: '.inventory_item' }
+[AI-Heal][Live] Action start {
+  keyPath: 'inventory.itemCard',
+  selector: '.inventory_item',
+  description: "Inventory card for 'Test.allTheThings() T-Shirt (Red)'",
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'inventory.itemCard', selector: '.inventory_item' }
+[AI-Heal][Live] Action start {
+  keyPath: 'cart.cartLink',
+  selector: '.shopping_cart_link_broken',
+  description: 'Cart link',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Extended current test timeout for healing {
+  keyPath: 'inventory.itemCard',
+  selector: '.inventory_item_broken',
+  extraMs: 60000,
+  newTimeoutMs: 150000
+}
+[AI-Heal][Live] LLM healing triggered {
+  keyPath: 'inventory.itemCard',
+  failedSelector: '.inventory_item_broken',
+  error: 'locator.click: Timeout 15000ms exceeded.\n' +
+    'Call log:\n' +
+    "\x1B[2m  - waiting for locator('.inventory_item_broken').filter({ hasText: 'Sauce Labs Backpack' }).getByRole('button', { name: /add to cart/i })\x1B[22m\n"
+}
+[AI-Heal][Live] Extended current test timeout for healing {
+  keyPath: 'inventory.itemCard',
+  selector: '.inventory_item_broken',
+  extraMs: 60000,
+  newTimeoutMs: 150000
+}
+[AI-Heal][Live] LLM healing triggered {
+  keyPath: 'inventory.itemCard',
+  failedSelector: '.inventory_item_broken',
+  error: 'locator.click: Timeout 15000ms exceeded.\n' +
+    'Call log:\n' +
+    "\x1B[2m  - waiting for locator('.inventory_item_broken').filter({ hasText: 'Sauce Labs Backpack' }).getByRole('button', { name: /add to cart/i })\x1B[22m\n"
+}
+[AI-Heal][Live] LLM healing applied {
+  keyPath: 'inventory.itemCard',
+  from: '.inventory_item_broken',
+  to: '.inventory_item'
+}
+[AI-Heal] Inventory card for 'Sauce Labs Backpack': '.inventory_item_broken' -> '.inventory_item' (saved in C:\Apps & Workspace\Workspace\Playwright E2E\src\pages\locator-overrides.json)
+[AI-Heal][Live] Action start {
+  keyPath: 'inventory.itemCard',
+  selector: '.inventory_item',
+  description: "Inventory card for 'Sauce Labs Onesie'",
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'inventory.itemCard', selector: '.inventory_item' }
+[AI-Heal][Live] Action start {
+  keyPath: 'inventory.itemCard',
+  selector: '.inventory_item',
+  description: "Inventory card for 'Sauce Labs Fleece Jacket'",
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] LLM healing applied {
+  keyPath: 'inventory.itemCard',
+  from: '.inventory_item_broken',
+  to: '.inventory_item'
+}
+[AI-Heal] Inventory card for 'Sauce Labs Backpack': '.inventory_item_broken' -> '.inventory_item' (saved in C:\Apps & Workspace\Workspace\Playwright E2E\src\pages\locator-overrides.json)
+[AI-Heal][Live] Action start {
+  keyPath: 'inventory.itemCard',
+  selector: '.inventory_item',
+  description: "Inventory card for 'Sauce Labs Bike Light'",
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'inventory.itemCard', selector: '.inventory_item' }
+[AI-Heal][Live] Action start {
+  keyPath: 'cart.cartLink',
+  selector: '.shopping_cart_link_broken',
+  description: 'Cart link',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'inventory.itemCard', selector: '.inventory_item' }
+[AI-Heal][Live] Action start {
+  keyPath: 'inventory.itemCard',
+  selector: '.inventory_item',
+  description: "Inventory card for 'Sauce Labs Bolt T-Shirt'",
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'inventory.itemCard', selector: '.inventory_item' }
+[AI-Heal][Live] Action start {
+  keyPath: 'inventory.itemCard',
+  selector: '.inventory_item',
+  description: "Inventory card for 'Sauce Labs Fleece Jacket'",
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'inventory.itemCard', selector: '.inventory_item' }
+[AI-Heal][Live] Action start {
+  keyPath: 'inventory.itemCard',
+  selector: '.inventory_item',
+  description: "Inventory card for 'Sauce Labs Onesie'",
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'inventory.itemCard', selector: '.inventory_item' }
+[AI-Heal][Live] Action start {
+  keyPath: 'inventory.itemCard',
+  selector: '.inventory_item',
+  description: "Inventory card for 'Test.allTheThings() T-Shirt (Red)'",
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'inventory.itemCard', selector: '.inventory_item' }
+[AI-Heal][Live] Action start {
+  keyPath: 'inventory.cartBadge',
+  selector: '.shopping_cart_link',
+  description: 'Inventory cart badge',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'inventory.cartBadge', selector: '.shopping_cart_link' }
+[AI-Heal][Live] Action start {
+  keyPath: 'inventory.itemCard',
+  selector: '.inventory_item',
+  description: "Inventory remove card for 'Sauce Labs Backpack'",
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'inventory.itemCard', selector: '.inventory_item' }
+[AI-Heal][Live] Action start {
+  keyPath: 'inventory.itemCard',
+  selector: '.inventory_item',
+  description: "Inventory remove card for 'Sauce Labs Bike Light'",
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'inventory.itemCard', selector: '.inventory_item' }
+[AI-Heal][Live] Action start {
+  keyPath: 'inventory.itemCard',
+  selector: '.inventory_item',
+  description: "Inventory remove card for 'Sauce Labs Bolt T-Shirt'",
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'inventory.itemCard', selector: '.inventory_item' }
+[AI-Heal][Live] Action start {
+  keyPath: 'inventory.itemCard',
+  selector: '.inventory_item',
+  description: "Inventory remove card for 'Sauce Labs Fleece Jacket'",
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'inventory.itemCard', selector: '.inventory_item' }
+[AI-Heal][Live] Action start {
+  keyPath: 'inventory.itemCard',
+  selector: '.inventory_item',
+  description: "Inventory remove card for 'Sauce Labs Onesie'",
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'inventory.itemCard', selector: '.inventory_item' }
+[AI-Heal][Live] Action start {
+  keyPath: 'inventory.itemCard',
+  selector: '.inventory_item',
+  description: "Inventory remove card for 'Test.allTheThings() T-Shirt (Red)'",
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'inventory.itemCard', selector: '.inventory_item' }
+[AI-Heal][Live] Action start {
+  keyPath: 'inventory.cartBadge',
+  selector: '.shopping_cart_link',
+  description: 'Inventory cart badge',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'inventory.cartBadge', selector: '.shopping_cart_link' }
+  ✓  3 src\tests\inventory.spec.ts:5:5 › Add Items to Cart (17.7s)
+[AI-Heal][Live] Extended current test timeout for healing {
+  keyPath: 'cart.cartLink',
+  selector: '.shopping_cart_link_broken',
+  extraMs: 60000,
+  newTimeoutMs: 210000
+}
+[AI-Heal][Live] LLM healing triggered {
+  keyPath: 'cart.cartLink',
+  failedSelector: '.shopping_cart_link_broken',
+  error: 'locator.click: Timeout 15000ms exceeded.\n' +
+    'Call log:\n' +
+    "\x1B[2m  - waiting for locator('.shopping_cart_link_broken')\x1B[22m\n"
+}
+[AI-Heal][Live] LLM healing applied {
+  keyPath: 'cart.cartLink',
+  from: '.shopping_cart_link_broken',
+  to: '.shopping_cart_link'
+}
+[AI-Heal] Cart link: '.shopping_cart_link_broken' -> '.shopping_cart_link' (saved in C:\Apps & Workspace\Workspace\Playwright E2E\src\pages\locator-overrides.json)
+[AI-Heal][Live] Action start {
+  keyPath: 'cart.checkoutButton',
+  selector: '#checkout_broken',
+  description: 'Checkout button',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Extended current test timeout for healing {
+  keyPath: 'cart.cartLink',
+  selector: '.shopping_cart_link_broken',
+  extraMs: 60000,
+  newTimeoutMs: 210000
+}
+[AI-Heal][Live] LLM healing triggered {
+  keyPath: 'cart.cartLink',
+  failedSelector: '.shopping_cart_link_broken',
+  error: 'locator.click: Timeout 15000ms exceeded.\n' +
+    'Call log:\n' +
+    "\x1B[2m  - waiting for locator('.shopping_cart_link_broken')\x1B[22m\n"
+}
+[AI-Heal][Live] LLM healing applied {
+  keyPath: 'cart.cartLink',
+  from: '.shopping_cart_link_broken',
+  to: '.shopping_cart_link'
+}
+[AI-Heal] Cart link: '.shopping_cart_link_broken' -> '.shopping_cart_link' (saved in C:\Apps & Workspace\Workspace\Playwright E2E\src\pages\locator-overrides.json)
+[AI-Heal][Live] Action start {
+  keyPath: 'inventory.cartBadge',
+  selector: '.shopping_cart_link',
+  description: 'Inventory cart badge',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'inventory.cartBadge', selector: '.shopping_cart_link' }
+[AI-Heal][Live] Action start {
+  keyPath: 'cart.cartItem',
+  selector: '.cart_item',
+  description: "Cart row for 'Sauce Labs Fleece Jacket'",
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'cart.cartItem', selector: '.cart_item' }
+[AI-Heal][Live] Action start {
+  keyPath: 'inventory.cartBadge',
+  selector: '.shopping_cart_link',
+  description: 'Inventory cart badge',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'inventory.cartBadge', selector: '.shopping_cart_link' }
+  ✓  4 src\tests\cart.spec.ts:6:5 › Cart Flow (32.2s)
+[AI-Heal][Live] Extended current test timeout for healing {
+  keyPath: 'cart.checkoutButton',
+  selector: '#checkout_broken',
+  extraMs: 60000,
+  newTimeoutMs: 270000
+}
+[AI-Heal][Live] LLM healing triggered {
+  keyPath: 'cart.checkoutButton',
+  failedSelector: '#checkout_broken',
+  error: 'locator.click: Timeout 15000ms exceeded.\n' +
+    'Call log:\n' +
+    "\x1B[2m  - waiting for locator('#checkout_broken')\x1B[22m\n"
+}
+[AI-Heal][Live] LLM healing applied {
+  keyPath: 'cart.checkoutButton',
+  from: '#checkout_broken',
+  to: '#checkout'
+}
+[AI-Heal] Checkout button: '#checkout_broken' -> '#checkout' (saved in C:\Apps & Workspace\Workspace\Playwright E2E\src\pages\locator-overrides.json)
+[AI-Heal][Live] Action start {
+  keyPath: 'checkout.firstName',
+  selector: '#first-name',
+  description: 'Checkout first name',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'checkout.firstName', selector: '#first-name' }
+[AI-Heal][Live] Action start {
+  keyPath: 'checkout.lastName',
+  selector: '#last-name',
+  description: 'Checkout last name',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'checkout.lastName', selector: '#last-name' }
+[AI-Heal][Live] Action start {
+  keyPath: 'checkout.postalCode',
+  selector: '#postal-code',
+  description: 'Checkout postal code',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'checkout.postalCode', selector: '#postal-code' }
+[AI-Heal][Live] Action start {
+  keyPath: 'checkout.continueButton',
+  selector: '#continue',
+  description: 'Checkout continue button',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'checkout.continueButton', selector: '#continue' }
+[AI-Heal][Live] Action start {
+  keyPath: 'checkout.finishButton',
+  selector: '#finish_broken',
+  description: 'Checkout finish button',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Extended current test timeout for healing {
+  keyPath: 'checkout.finishButton',
+  selector: '#finish_broken',
+  extraMs: 60000,
+  newTimeoutMs: 330000
+}
+[AI-Heal][Live] LLM healing triggered {
+  keyPath: 'checkout.finishButton',
+  failedSelector: '#finish_broken',
+  error: 'locator.click: Timeout 15000ms exceeded.\n' +
+    'Call log:\n' +
+    "\x1B[2m  - waiting for locator('#finish_broken')\x1B[22m\n"
+}
+[AI-Heal][Live] LLM healing applied {
+  keyPath: 'checkout.finishButton',
+  from: '#finish_broken',
+  to: '#finish'
+}
+[AI-Heal] Checkout finish button: '#finish_broken' -> '#finish' (saved in C:\Apps & Workspace\Workspace\Playwright E2E\src\pages\locator-overrides.json)
+[AI-Heal][Live] Action start {
+  keyPath: 'checkout.completeHeader',
+  selector: '.complete-header',
+  description: 'Checkout complete header',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'checkout.completeHeader', selector: '.complete-header' }
+[AI-Heal][Live] Action start {
+  keyPath: 'checkout.completeText',
+  selector: '.complete-text',
+  description: 'Checkout complete text',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing { keyPath: 'checkout.completeText', selector: '.complete-text' }
+[AI-Heal][Live] Action start {
+  keyPath: 'checkout.backToProductsButton',
+  selector: '#back-to-products',
+  description: 'Back to products button',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Action succeeded without LLM healing {
+  keyPath: 'checkout.backToProductsButton',
+  selector: '#back-to-products'
+}
+  ✓  2 src\tests\checkout.spec.ts:7:5 › Checkout Flow (1.0m)
+
+  5 passed (1.1m)
+
+To open last HTML report run:
+
+  npx playwright show-report
+
+[AI-Heal] Test run passed on attempt 1. Total locator fixes saved: 4.

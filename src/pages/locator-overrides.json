@@ -1,1 +1,6 @@
-{}
+{
+  "inventory.itemCard": ".inventory_item",
+  "cart.cartLink": ".shopping_cart_link",
+  "cart.checkoutButton": "#checkout",
+  "checkout.finishButton": "#finish"
+}
