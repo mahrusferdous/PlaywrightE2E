@@ -15,15 +15,15 @@ export const appLocators = {
 		errorMessage: "data-test=error",
 	},
 	inventory: {
-		itemCard: ".inventory_item_broken",
+		itemCard: ".inventory_itemz",
 		cartBadge: ".shopping_cart_link",
 		addToCartButtonName: /add to cart/i,
 		removeButtonName: /remove/i,
 	},
 	cart: {
-		cartLink: ".shopping_cart_link_broken",
+		cartLink: ".shopping_cart_linkz",
 		cartItem: ".cart_item",
-		checkoutButton: "#checkout_broken",
+		checkoutButton: "#checkoutz",
 		removeButtonName: /remove/i,
 	},
 	checkout: {
@@ -31,7 +31,7 @@ export const appLocators = {
 		lastName: "#last-name",
 		postalCode: "#postal-code",
 		continueButton: "#continue",
-		finishButton: "#finish_broken",
+		finishButton: "#finishz",
 		backToProductsButton: "#back-to-products",
 		completeHeader: ".complete-header",
 		completeText: ".complete-text",

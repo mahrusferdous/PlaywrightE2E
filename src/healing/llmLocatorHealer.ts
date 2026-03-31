@@ -14,6 +14,8 @@ export interface LocatorHealingPrompt {
 	uiTextSnippet: string;
 	pageHtmlSnippet: string;
 	projectContextSnippet?: string;
+	domSelectorCandidates?: string[];
+	projectSelectorCandidates?: string[];
 }
 
 const DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434";
@@ -175,6 +177,54 @@ function collectSelectorsFromBackticks(content: string): string[] {
 }
 
 /**
+ * Generates conservative morphology variants without hardcoded token dictionaries.
+ */
+function generateMorphologySelectors(selector: string): string[] {
+	const trimmed = selector.trim();
+	if (!trimmed) {
+		return [];
+	}
+
+	const candidates = new Set<string>([trimmed]);
+	const applyWordTransform = (value: string, transform: (word: string) => string) =>
+		value.replace(/\b([a-z][a-z0-9_-]{3,})\b/gi, (_full, word: string) => transform(word));
+
+	candidates.add(
+		applyWordTransform(trimmed, (word) => {
+			if (word.length > 4) {
+				return word.slice(0, -1);
+			}
+			if (word.endsWith("ies") && word.length > 4) {
+				return `${word.slice(0, -3)}y`;
+			}
+			if (word.endsWith("ses") && word.length > 4) {
+				return word.slice(0, -2);
+			}
+			if (word.endsWith("s") && !word.endsWith("ss") && word.length > 3) {
+				return word.slice(0, -1);
+			}
+			return word;
+		}),
+	);
+
+	candidates.add(
+		applyWordTransform(trimmed, (word) => {
+			if (word.endsWith("y") && word.length > 3) {
+				return `${word.slice(0, -1)}ies`;
+			}
+			if (!word.endsWith("s") && word.length > 3) {
+				return `${word}s`;
+			}
+			return word;
+		}),
+	);
+
+	return Array.from(candidates)
+		.map((candidate) => normalizeSelector(candidate))
+		.filter(Boolean);
+}
+
+/**
  * Generates deterministic fallback selectors from failed selector text.
  */
 function generateFallbackSelectors(prompt: LocatorHealingPrompt): string[] {
@@ -191,6 +241,15 @@ function generateFallbackSelectors(prompt: LocatorHealingPrompt): string[] {
 		const core = trimmed.slice(1);
 		candidates.add(`#${core.replace(/([-_])broken\b/gi, "")}`);
 		candidates.add(`.${core.replace(/([-_])broken\b/gi, "")}`);
+	}
+
+	for (const candidate of generateMorphologySelectors(trimmed)) {
+		candidates.add(candidate);
+		if (candidate.startsWith("#") || candidate.startsWith(".")) {
+			const core = candidate.slice(1);
+			candidates.add(`[id="${core}"]`);
+			candidates.add(`[class="${core}"]`);
+		}
 	}
 
 	const sanitized = Array.from(candidates)
@@ -338,6 +397,16 @@ function getUserPrompt(prompt: LocatorHealingPrompt, repairMode = false) {
 	if (prompt.projectContextSnippet) {
 		sections.push("Project source context:");
 		sections.push(prompt.projectContextSnippet);
+	}
+
+	if (prompt.projectSelectorCandidates && prompt.projectSelectorCandidates.length > 0) {
+		sections.push("Reference selectors mined from project source (prefer these when they match intent):");
+		sections.push(prompt.projectSelectorCandidates.slice(0, 25).join("\n"));
+	}
+
+	if (prompt.domSelectorCandidates && prompt.domSelectorCandidates.length > 0) {
+		sections.push("Selectors mined from current live DOM (high confidence):");
+		sections.push(prompt.domSelectorCandidates.slice(0, 20).join("\n"));
 	}
 
 	sections.push("Visible UI text snippet:", prompt.uiTextSnippet);
@@ -496,6 +565,8 @@ async function requestFromOllama(prompt: LocatorHealingPrompt): Promise<string[]
 		htmlSnippetLength: prompt.pageHtmlSnippet.length,
 		uiTextLength: prompt.uiTextSnippet.length,
 		projectContextLength: prompt.projectContextSnippet?.length ?? 0,
+		domCandidatesCount: prompt.domSelectorCandidates?.length ?? 0,
+		projectSelectorCandidatesCount: prompt.projectSelectorCandidates?.length ?? 0,
 	});
 
 	let messageContent = "";

@@ -13,6 +13,11 @@ interface ContextIndexCache {
 	lines: IndexedLine[];
 }
 
+interface ProjectSelectorCandidate {
+	selector: string;
+	score: number;
+}
+
 const ALLOWED_EXTENSIONS = new Set([".js", ".jsx", ".ts", ".tsx", ".html"]);
 const LINE_MARKER_REGEX =
 	/(id|className|class|data-test|data-testid|aria-label|name)\s*=|getByRole|getByText|locator\(/i;
@@ -21,6 +26,7 @@ const MAX_FILE_COUNT = 500;
 const MAX_FILE_SIZE_BYTES = 300_000;
 const MAX_RETURN_LINES = 20;
 const MAX_RETURN_CHARS = 4200;
+const MAX_SELECTOR_CANDIDATES = 30;
 
 let cache: ContextIndexCache | null = null;
 
@@ -52,6 +58,89 @@ function splitWords(value: string): string[] {
 		.map((token) => token.trim())
 		.filter((token) => token.length >= 3)
 		.filter((token) => token !== "broken");
+}
+
+/**
+ * Normalizes selector-like text for ranking.
+ */
+function normalizeSelectorText(value: string): string {
+	return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+/**
+ * Scores selector text against context tokens.
+ */
+function scoreSelector(selector: string, tokens: string[]): number {
+	const normalized = normalizeSelectorText(selector);
+	let score = 0;
+	for (const token of tokens) {
+		if (normalized.includes(normalizeSelectorText(token))) {
+			score += 3;
+		}
+	}
+
+	if (selector.startsWith("[data-test") || selector.startsWith("[data-testid")) {
+		score += 4;
+	}
+	if (selector.startsWith("#")) {
+		score += 3;
+	}
+	if (selector.startsWith(".")) {
+		score += 2;
+	}
+
+	return score;
+}
+
+/**
+ * Extracts selector-like candidates from source lines.
+ */
+function extractSelectorsFromLine(lineText: string): string[] {
+	const selectors = new Set<string>();
+	const line = lineText.trim();
+
+	const captureAll = (regex: RegExp, toSelector: (value: string) => string) => {
+		for (const match of line.matchAll(regex)) {
+			const raw = (match[1] ?? "").trim();
+			if (!raw) {
+				continue;
+			}
+			selectors.add(toSelector(raw));
+		}
+	};
+
+	captureAll(/\bdata-testid\s*=\s*["'`]([^"'`]+)["'`]/gi, (value) => `[data-testid="${value}"]`);
+	captureAll(/\bdata-test\s*=\s*["'`]([^"'`]+)["'`]/gi, (value) => `[data-test="${value}"]`);
+	captureAll(/\bid\s*=\s*["'`]([^"'`\s]+)["'`]/gi, (value) => `#${value}`);
+	captureAll(/\bname\s*=\s*["'`]([^"'`\s]+)["'`]/gi, (value) => `[name="${value}"]`);
+	captureAll(/\baria-label\s*=\s*["'`]([^"'`]+)["'`]/gi, (value) => `[aria-label="${value}"]`);
+
+	for (const match of line.matchAll(/\bclass(?:Name)?\s*=\s*["'`]([^"'`]+)["'`]/gi)) {
+		const raw = (match[1] ?? "").trim();
+		if (!raw) {
+			continue;
+		}
+		const classTokens = raw
+			.split(/\s+/)
+			.map((token) => token.trim())
+			.filter((token) => /^[a-zA-Z][a-zA-Z0-9_-]*$/.test(token));
+		for (const className of classTokens) {
+			selectors.add(`.${className}`);
+		}
+	}
+
+	for (const match of line.matchAll(/["'`]([a-z][a-z0-9]*(?:[-_][a-z0-9]+)+)["'`]/gi)) {
+		const token = (match[1] ?? "").trim();
+		if (!token || token.length < 4) {
+			continue;
+		}
+		selectors.add(`.${token}`);
+		selectors.add(`#${token}`);
+		selectors.add(`[data-test="${token}"]`);
+		selectors.add(`[data-testid="${token}"]`);
+	}
+
+	return Array.from(selectors);
 }
 
 /**
@@ -255,4 +344,64 @@ export function getProjectContextSnippet(keyPath: string, failedSelector: string
 	});
 
 	return snippet;
+}
+
+/**
+ * Returns selector candidates mined from the reference project source.
+ */
+export function getProjectSelectorCandidates(
+	keyPath: string,
+	failedSelector: string,
+	maxCandidates = MAX_SELECTOR_CANDIDATES,
+): string[] {
+	if (!isProjectContextEnabled()) {
+		return [];
+	}
+
+	const rootDir = getContextRootDir();
+	const index = ensureIndex(rootDir);
+	if (!index || index.lines.length === 0) {
+		return [];
+	}
+
+	const tokens = Array.from(new Set([...splitWords(keyPath), ...splitWords(failedSelector)]));
+	if (tokens.length === 0) {
+		return [];
+	}
+
+	const rankedLines = index.lines
+		.map((line) => ({ line, score: scoreLine(line, tokens) }))
+		.filter((item) => item.score > 0)
+		.sort((left, right) => right.score - left.score)
+		.slice(0, 180);
+
+	const selectorCandidates = new Map<string, ProjectSelectorCandidate>();
+	for (const item of rankedLines) {
+		for (const selector of extractSelectorsFromLine(item.line.lineText)) {
+			const score = item.score + scoreSelector(selector, tokens);
+			if (score <= 0) {
+				continue;
+			}
+
+			const existing = selectorCandidates.get(selector);
+			if (!existing || existing.score < score) {
+				selectorCandidates.set(selector, { selector, score });
+			}
+		}
+	}
+
+	const rankedSelectors = Array.from(selectorCandidates.values())
+		.sort((left, right) => right.score - left.score)
+		.slice(0, maxCandidates)
+		.map((item) => item.selector);
+
+	verboseLog("Project selector candidates generated", {
+		keyPath,
+		failedSelector,
+		tokens,
+		candidateCount: rankedSelectors.length,
+		rankedSelectors,
+	});
+
+	return rankedSelectors;
 }

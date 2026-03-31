@@ -1,5 +1,5 @@
 import { test, type Locator, type Page } from "@playwright/test";
-import { getLocatorOverridesPath, getLocatorValue, setLocatorValue } from "./locatorStore";
+import { getLocatorOverridesPath, getLocatorValue, resolveLocatorKeyPath, setLocatorValue } from "./locatorStore";
 import {
 	type LocatorHealingPrompt,
 	isAiHealingEnabled,
@@ -8,6 +8,7 @@ import {
 	requestSelectorCandidates,
 } from "./llmLocatorHealer";
 import { detectCurrentPageScope, getExpectedPageScope, isPageScopeCompatible } from "./pageContext";
+import { getProjectSelectorCandidates } from "./projectContextReader";
 
 interface HealingActionOptions {
 	description?: string;
@@ -242,12 +243,40 @@ function candidateMatchesIntent(candidate: string, tokens: string[]): boolean {
 	}
 
 	const normalizedCandidate = candidate.toLowerCase();
-	const matchCount = tokens.filter((token) => normalizedCandidate.includes(token)).length;
+	const normalizedCandidateCompact = normalizedCandidate.replace(/[^a-z0-9]+/g, "");
+	const normalizedTokens = tokens
+		.map((token) => token.toLowerCase().replace(/[^a-z0-9]+/g, ""))
+		.filter(Boolean)
+		.flatMap((token) => {
+			const variants = new Set<string>([token]);
+			if (token.length > 4) {
+				variants.add(token.slice(0, -1));
+			}
+			if (token.endsWith("s") && token.length > 3 && !token.endsWith("ss")) {
+				variants.add(token.slice(0, -1));
+			}
+			if (token.endsWith("ies") && token.length > 4) {
+				variants.add(`${token.slice(0, -3)}y`);
+			}
+			if (token.endsWith("y") && token.length > 3) {
+				variants.add(`${token.slice(0, -1)}ies`);
+			}
+			if (!token.endsWith("s") && token.length > 3) {
+				variants.add(`${token}s`);
+			}
+			return Array.from(variants);
+		});
+
+	const uniqueTokens = Array.from(new Set(normalizedTokens));
+	const matchCount = uniqueTokens.filter(
+		(token) => normalizedCandidate.includes(token) || normalizedCandidateCompact.includes(token),
+	).length;
 	if (tokens.length === 1) {
 		return matchCount >= 1;
 	}
 
-	return matchCount >= 2;
+	const requiredMatches = tokens.length <= 3 ? 1 : 2;
+	return matchCount >= requiredMatches;
 }
 
 /**
@@ -255,6 +284,54 @@ function candidateMatchesIntent(candidate: string, tokens: string[]): boolean {
  */
 function escapeAttributeValue(value: string): string {
 	return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+/**
+ * Builds conservative morphology variants without hardcoded token replacements.
+ */
+function generateMorphologyCandidates(selector: string): string[] {
+	const candidates = new Set<string>();
+	const trimmed = selector.trim();
+	if (!trimmed) {
+		return [];
+	}
+
+	const applyWordTransform = (value: string, transform: (word: string) => string) =>
+		value.replace(/\b([a-z][a-z0-9_-]{3,})\b/gi, (_full, word: string) => transform(word));
+
+	candidates.add(
+		applyWordTransform(trimmed, (word) => {
+			if (word.length > 4) {
+				return word.slice(0, -1);
+			}
+			if (word.endsWith("ies") && word.length > 4) {
+				return `${word.slice(0, -3)}y`;
+			}
+			if (word.endsWith("ses") && word.length > 4) {
+				return word.slice(0, -2);
+			}
+			if (word.endsWith("s") && !word.endsWith("ss") && word.length > 3) {
+				return word.slice(0, -1);
+			}
+			return word;
+		}),
+	);
+
+	candidates.add(
+		applyWordTransform(trimmed, (word) => {
+			if (word.endsWith("y") && word.length > 3) {
+				return `${word.slice(0, -1)}ies`;
+			}
+			if (!word.endsWith("s") && word.length > 3) {
+				return `${word}s`;
+			}
+			return word;
+		}),
+	);
+
+	return Array.from(candidates)
+		.map((candidate) => candidate.trim())
+		.filter(Boolean);
 }
 
 /**
@@ -271,7 +348,10 @@ function generateDirectRepairCandidates(selector: string): string[] {
 	candidates.add(trimmed.replace(/broken\b/gi, ""));
 
 	if (trimmed.startsWith(".") || trimmed.startsWith("#")) {
-		const core = trimmed.slice(1).replace(/([-_])broken\b/gi, "").replace(/broken\b/gi, "");
+		const core = trimmed
+			.slice(1)
+			.replace(/([-_])broken\b/gi, "")
+			.replace(/broken\b/gi, "");
 		if (core) {
 			candidates.add(`${trimmed[0]}${core}`);
 			candidates.add(`[class="${escapeAttributeValue(core)}"]`);
@@ -279,7 +359,20 @@ function generateDirectRepairCandidates(selector: string): string[] {
 		}
 	}
 
-	return Array.from(candidates).map((candidate) => candidate.trim()).filter(Boolean);
+	for (const typoCandidate of generateMorphologyCandidates(trimmed)) {
+		candidates.add(typoCandidate);
+		if (typoCandidate.startsWith(".") || typoCandidate.startsWith("#")) {
+			const typoCore = typoCandidate.slice(1);
+			if (typoCore) {
+				candidates.add(`[class="${escapeAttributeValue(typoCore)}"]`);
+				candidates.add(`[id="${escapeAttributeValue(typoCore)}"]`);
+			}
+		}
+	}
+
+	return Array.from(candidates)
+		.map((candidate) => candidate.trim())
+		.filter(Boolean);
 }
 
 /**
@@ -429,7 +522,11 @@ async function collectDomSelectorCandidates(
 					if (node.id) {
 						score += 6;
 					}
-					if (node.getAttribute("name") || node.getAttribute("aria-label") || node.getAttribute("placeholder")) {
+					if (
+						node.getAttribute("name") ||
+						node.getAttribute("aria-label") ||
+						node.getAttribute("placeholder")
+					) {
 						score += 4;
 					}
 					if (text && text.length <= 80) {
@@ -597,10 +694,7 @@ function buildFocusedHtmlSnippet(pageHtml: string, failedSelector: string): stri
  * Builds a visible-text snapshot so the LLM can reason from what a user would see.
  */
 function buildUiTextSnippet(pageText: string): string {
-	return pageText
-		.replace(/\s+/g, " ")
-		.trim()
-		.slice(0, 2500);
+	return pageText.replace(/\s+/g, " ").trim().slice(0, 2500);
 }
 
 /**
@@ -622,7 +716,10 @@ async function captureFailureContext(
 		const [html, pageTitle, pageText, detectedPage] = await Promise.all([
 			page.content(),
 			page.title().catch(() => ""),
-			page.locator("body").innerText().catch(() => ""),
+			page
+				.locator("body")
+				.innerText()
+				.catch(() => ""),
 			detectCurrentPageScope(page),
 		]);
 
@@ -661,11 +758,7 @@ async function captureFailureContext(
 /**
  * Converts failure capture data into an LLM prompt payload.
  */
-function buildHealingPrompt(
-	keyPath: string,
-	selector: string,
-	failure: FailureCapture,
-): LocatorHealingPrompt {
+function buildHealingPrompt(keyPath: string, selector: string, failure: FailureCapture): LocatorHealingPrompt {
 	return {
 		keyPath,
 		failedSelector: selector,
@@ -761,18 +854,23 @@ async function resolveValidSelector(
 	}
 
 	const domCandidates = await collectDomSelectorCandidates(page, keyPath, selector, options);
-	const domMatch = await findValidSelector(
-		page,
-		domCandidates,
-		options.requireVisible ?? true,
-		intentTokens,
-	);
+	const domMatch = await findValidSelector(page, domCandidates, options.requireVisible ?? true, intentTokens);
 	if (domMatch) {
 		return domMatch;
 	}
 
+	const projectCandidates = getProjectSelectorCandidates(keyPath, selector);
+	const projectMatch = await findValidSelector(page, projectCandidates, options.requireVisible ?? true, intentTokens);
+	if (projectMatch) {
+		return projectMatch;
+	}
+
 	const prompt = buildHealingPrompt(keyPath, selector, failure);
-	const llmCandidates = await requestSelectorCandidates(prompt);
+	const llmCandidates = await requestSelectorCandidates({
+		...prompt,
+		domSelectorCandidates: domCandidates,
+		projectSelectorCandidates: projectCandidates,
+	});
 	verboseLog("LLM candidates received", { keyPath, llmCandidates });
 	if (llmCandidates.length === 0) {
 		verboseLog("LLM returned no candidates", { keyPath });
@@ -782,7 +880,10 @@ async function resolveValidSelector(
 	const mergedCandidates = Array.from(new Set([...directRepairCandidates, ...domCandidates, ...llmCandidates]));
 	return findValidSelector(
 		page,
-		mergedCandidates.slice(0, Math.max(options.maxCandidates ?? DEFAULT_MAX_VALIDATION_CANDIDATES, DEFAULT_MAX_DOM_CANDIDATES)),
+		mergedCandidates.slice(
+			0,
+			Math.max(options.maxCandidates ?? DEFAULT_MAX_VALIDATION_CANDIDATES, DEFAULT_MAX_DOM_CANDIDATES),
+		),
 		options.requireVisible ?? true,
 		intentTokens,
 	);
@@ -801,9 +902,11 @@ export async function resolveSelfHealingLocator(
 	keyPath: string,
 	options: ResolveLocatorOptions = {},
 ): Promise<Locator> {
-	const selector = getLocatorValue(keyPath);
+	const resolvedKeyPath = resolveLocatorKeyPath(keyPath);
+	const selector = getLocatorValue(resolvedKeyPath);
 	verboseLog("Resolving selector", {
 		keyPath,
+		resolvedKeyPath,
 		selector,
 		description: options.description,
 	});
@@ -827,14 +930,14 @@ export async function resolveSelfHealingLocator(
 		return baseLocator;
 	}
 
-	const validSelector = await resolveValidSelector(page, keyPath, selector, options);
+	const validSelector = await resolveValidSelector(page, resolvedKeyPath, selector, options);
 	if (!validSelector || validSelector === selector) {
 		return baseLocator;
 	}
 
-	setLocatorValue(keyPath, validSelector);
+	setLocatorValue(resolvedKeyPath, validSelector);
 	console.info(
-		`[AI-Heal] ${options.description ?? keyPath}: '${selector}' -> '${validSelector}' (saved in ${getLocatorOverridesPath()})`,
+		`[AI-Heal] ${options.description ?? resolvedKeyPath}: '${selector}' -> '${validSelector}' (saved in ${getLocatorOverridesPath()})`,
 	);
 
 	return page.locator(validSelector);
@@ -855,29 +958,33 @@ export async function withSelfHealingLocator<T>(
 	action: (locator: Locator) => Promise<T>,
 	options: HealingActionOptions = {},
 ): Promise<T> {
-	const selector = getLocatorValue(keyPath);
+	const resolvedKeyPath = resolveLocatorKeyPath(keyPath);
+	const selector = getLocatorValue(resolvedKeyPath);
 	const actionTimeoutMs = getHealingActionTimeoutMs(options.actionTimeoutMs);
 	verboseLog("Executing action with selector", {
 		keyPath,
+		resolvedKeyPath,
 		selector,
 		description: options.description,
 		actionTimeoutMs,
 	});
-	liveLog("Action start", { keyPath, selector, description: options.description, actionTimeoutMs });
+	liveLog("Action start", { keyPath, resolvedKeyPath, selector, description: options.description, actionTimeoutMs });
 
 	try {
 		const result = await runActionWithTimeoutBudget(page, page.locator(selector), action, actionTimeoutMs);
-		liveLog("Action succeeded without LLM healing", { keyPath, selector });
+		liveLog("Action succeeded without LLM healing", { keyPath, resolvedKeyPath, selector });
 		return result;
 	} catch (initialError) {
 		verboseLog("Initial selector action failed", {
 			keyPath,
+			resolvedKeyPath,
 			selector,
 			error: initialError instanceof Error ? initialError.message : String(initialError),
 		});
 		if (!isAiHealingEnabled() || !looksLikeLocatorFailure(initialError)) {
 			liveLog("LLM healing skipped", {
 				keyPath,
+				resolvedKeyPath,
 				healingEnabled: isAiHealingEnabled(),
 				isLocatorFailure: looksLikeLocatorFailure(initialError),
 			});
@@ -888,22 +995,30 @@ export async function withSelfHealingLocator<T>(
 			throw initialError;
 		}
 
-		extendCurrentTestTimeout(getHealingTimeoutExtensionMs(options.extendTestTimeoutMs), keyPath, selector);
+		extendCurrentTestTimeout(getHealingTimeoutExtensionMs(options.extendTestTimeoutMs), resolvedKeyPath, selector);
 
 		liveLog("LLM healing triggered", {
 			keyPath,
+			resolvedKeyPath,
 			failedSelector: selector,
 			error: initialError instanceof Error ? initialError.message : String(initialError),
 		});
 
-		const validSelector = await resolveValidSelector(page, keyPath, selector, {
-			...options,
-			validateOnResolve: true,
-		}, initialError);
+		const validSelector = await resolveValidSelector(
+			page,
+			resolvedKeyPath,
+			selector,
+			{
+				...options,
+				validateOnResolve: true,
+			},
+			initialError,
+		);
 
 		if (!validSelector || validSelector === selector) {
 			liveLog("LLM healing produced no better selector", {
 				keyPath,
+				resolvedKeyPath,
 				validSelector,
 				originalSelector: selector,
 			});
@@ -916,20 +1031,27 @@ export async function withSelfHealingLocator<T>(
 		}
 
 		try {
-			const healedResult = await runActionWithTimeoutBudget(page, page.locator(validSelector), action, actionTimeoutMs);
-			setLocatorValue(keyPath, validSelector);
+			const healedResult = await runActionWithTimeoutBudget(
+				page,
+				page.locator(validSelector),
+				action,
+				actionTimeoutMs,
+			);
+			setLocatorValue(resolvedKeyPath, validSelector);
 			liveLog("LLM healing applied", {
 				keyPath,
+				resolvedKeyPath,
 				from: selector,
 				to: validSelector,
 			});
 			console.info(
-				`[AI-Heal] ${options.description ?? keyPath}: '${selector}' -> '${validSelector}' (saved in ${getLocatorOverridesPath()})`,
+				`[AI-Heal] ${options.description ?? resolvedKeyPath}: '${selector}' -> '${validSelector}' (saved in ${getLocatorOverridesPath()})`,
 			);
 			return healedResult;
 		} catch (healedActionError) {
 			liveLog("LLM healed selector failed during action", {
 				keyPath,
+				resolvedKeyPath,
 				selector: validSelector,
 				error: healedActionError instanceof Error ? healedActionError.message : String(healedActionError),
 			});

@@ -5,6 +5,97 @@ import { appLocators } from "../pages/locators";
 const OVERRIDES_PATH = path.resolve(process.cwd(), "src/pages/locator-overrides.json");
 
 let overridesCache: Record<string, string> | null = null;
+let locatorKeyPathCache: string[] | null = null;
+
+/**
+ * Returns all dot-path keys in appLocators that resolve to string selectors.
+ */
+function collectStringLocatorPaths(value: unknown, prefix = ""): string[] {
+	if (typeof value === "string") {
+		return prefix ? [prefix] : [];
+	}
+
+	if (typeof value !== "object" || value === null) {
+		return [];
+	}
+
+	const entries = Object.entries(value as Record<string, unknown>);
+	const paths: string[] = [];
+	for (const [key, child] of entries) {
+		const nextPrefix = prefix ? `${prefix}.${key}` : key;
+		paths.push(...collectStringLocatorPaths(child, nextPrefix));
+	}
+
+	return paths;
+}
+
+/**
+ * Caches and returns known string locator key paths.
+ */
+function getAllStringLocatorKeyPaths(): string[] {
+	if (locatorKeyPathCache !== null) {
+		return locatorKeyPathCache;
+	}
+
+	locatorKeyPathCache = collectStringLocatorPaths(appLocators);
+	return locatorKeyPathCache;
+}
+
+/**
+ * Normalizes key segments for typo-tolerant matching.
+ */
+function normalizeKeySegment(segment: string): string {
+	const underscored = segment
+		.replace(/([a-z])([A-Z])/g, "$1_$2")
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "_")
+		.replace(/^_+|_+$/g, "");
+
+	let singular = underscored;
+	if (singular.endsWith("s") && singular.length > 3 && !singular.endsWith("ss")) {
+		singular = singular.slice(0, -1);
+	}
+
+	return singular.replace(/_/g, "");
+}
+
+/**
+ * Resolves common typo variants to a known locator key path.
+ */
+export function resolveLocatorKeyPath(keyPath: string): string {
+	try {
+		getBaseLocatorValue(keyPath);
+		return keyPath;
+	} catch {
+		// Continue with typo-tolerant matching.
+	}
+
+	const parts = keyPath.split(".");
+	if (parts.length < 2) {
+		return keyPath;
+	}
+
+	const scope = normalizeKeySegment(parts[0]);
+	const leaf = normalizeKeySegment(parts[parts.length - 1]);
+	if (!scope || !leaf) {
+		return keyPath;
+	}
+
+	for (const candidate of getAllStringLocatorKeyPaths()) {
+		const candidateParts = candidate.split(".");
+		if (candidateParts.length < 2) {
+			continue;
+		}
+
+		const candidateScope = normalizeKeySegment(candidateParts[0]);
+		const candidateLeaf = normalizeKeySegment(candidateParts[candidateParts.length - 1]);
+		if (candidateScope === scope && candidateLeaf === leaf) {
+			return candidate;
+		}
+	}
+
+	return keyPath;
+}
 
 /**
  * Loads locator overrides from disk and caches them in memory.
@@ -64,15 +155,25 @@ function getBaseLocatorValue(keyPath: string): unknown {
  * @returns The effective selector string.
  */
 export function getLocatorValue(keyPath: string): string {
+	const resolvedKeyPath = resolveLocatorKeyPath(keyPath);
 	const overrides = loadOverrides();
-	const overrideValue = overrides[keyPath];
+	const overrideValue = overrides[resolvedKeyPath];
 	if (overrideValue) {
+		if (resolvedKeyPath !== keyPath) {
+			console.warn(
+				`[LocatorStore] Auto-corrected locator key path '${keyPath}' -> '${resolvedKeyPath}' from overrides.`,
+			);
+		}
 		return overrideValue;
 	}
 
-	const baseValue = getBaseLocatorValue(keyPath);
+	const baseValue = getBaseLocatorValue(resolvedKeyPath);
 	if (typeof baseValue !== "string") {
-		throw new Error(`[LocatorStore] Locator key path is not a string: ${keyPath}`);
+		throw new Error(`[LocatorStore] Locator key path is not a string: ${resolvedKeyPath}`);
+	}
+
+	if (resolvedKeyPath !== keyPath) {
+		console.warn(`[LocatorStore] Auto-corrected locator key path '${keyPath}' -> '${resolvedKeyPath}'.`);
 	}
 
 	return baseValue;
@@ -87,16 +188,17 @@ export function getLocatorValue(keyPath: string): string {
  * @param selector The selector to persist as override.
  */
 export function setLocatorValue(keyPath: string, selector: string) {
-	const baseValue = getBaseLocatorValue(keyPath);
+	const resolvedKeyPath = resolveLocatorKeyPath(keyPath);
+	const baseValue = getBaseLocatorValue(resolvedKeyPath);
 	if (typeof baseValue !== "string") {
-		throw new Error(`[LocatorStore] Cannot override non-string locator key path: ${keyPath}`);
+		throw new Error(`[LocatorStore] Cannot override non-string locator key path: ${resolvedKeyPath}`);
 	}
 
 	const overrides = loadOverrides();
 	if (selector === baseValue) {
-		delete overrides[keyPath];
+		delete overrides[resolvedKeyPath];
 	} else {
-		overrides[keyPath] = selector;
+		overrides[resolvedKeyPath] = selector;
 	}
 
 	const autoSave = process.env.AI_LOCATOR_AUTO_SAVE !== "false";
