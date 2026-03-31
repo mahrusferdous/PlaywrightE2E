@@ -10,8 +10,8 @@ export const appLocators = {
 	},
 	login: {
 		username: "#user-name",
-		password: "#password",
-		loginButton: "#login-button",
+		password: "#psword",
+		loginButton: "#logi-button",
 		errorMessage: "data-test=error",
 	},
 	inventory: {
@@ -22,7 +22,7 @@ export const appLocators = {
 	},
 	cart: {
 		cartLink: ".shopping_cart_linkz",
-		cartItem: ".cart_item",
+		cartItem: ".cartitem",
 		checkoutButton: "#checkoutz",
 		removeButtonName: /remove/i,
 	},
@@ -30,10 +30,10 @@ export const appLocators = {
 		firstName: "#first-name",
 		lastName: "#last-name",
 		postalCode: "#postal-code",
-		continueButton: "#continue",
+		continueButton: "#cotinue",
 		finishButton: "#finishz",
 		backToProductsButton: "#back-to-products",
 		completeHeader: ".complete-header",
-		completeText: ".complete-text",
+		completeText: ".complete-txt",
 	},
 };

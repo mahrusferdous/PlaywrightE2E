@@ -33,6 +33,12 @@ interface FailureCapture {
 	pageHtmlSnippet: string;
 }
 
+interface CandidateValidationContext {
+	keyPath: string;
+	failedSelector: string;
+	description?: string;
+}
+
 interface DomCandidate {
 	selector: string;
 	score: number;
@@ -277,6 +283,38 @@ function candidateMatchesIntent(candidate: string, tokens: string[]): boolean {
 
 	const requiredMatches = tokens.length <= 3 ? 1 : 2;
 	return matchCount >= requiredMatches;
+}
+
+/**
+ * Determines if the locator is expected to represent a collection/list item.
+ */
+function isCollectionLikeTarget(context: CandidateValidationContext): boolean {
+	const source = `${context.keyPath} ${context.failedSelector} ${context.description ?? ""}`.toLowerCase();
+	return /\b(item|items|card|cards|row|rows|entry|entries|list)\b/.test(source);
+}
+
+/**
+ * Rejects candidates that are too generic or too specific for list-like locators.
+ */
+function candidatePassesCollectionConstraints(candidate: string, context: CandidateValidationContext): boolean {
+	if (!isCollectionLikeTarget(context)) {
+		return true;
+	}
+
+	const normalized = candidate.toLowerCase();
+	const hasListSemantics = /item|card|row|entry|product/.test(normalized);
+	const isGenericContainer = /container|contents?|wrapper|layout|header|footer/.test(normalized);
+	const isProductSpecific = /(backpack|onesie|fleece|bike|jacket|t-?shirt|sauce-labs|remove-)/.test(normalized);
+
+	if (isProductSpecific) {
+		return false;
+	}
+
+	if (isGenericContainer && !hasListSemantics) {
+		return false;
+	}
+
+	return true;
 }
 
 /**
@@ -781,6 +819,7 @@ async function findValidSelector(
 	selectors: string[],
 	requireVisible: boolean,
 	intentTokens: string[],
+	context: CandidateValidationContext,
 ): Promise<string | null> {
 	for (const selector of selectors) {
 		const candidate = selector.trim();
@@ -790,6 +829,15 @@ async function findValidSelector(
 
 		if (!candidateMatchesIntent(candidate, intentTokens)) {
 			verboseLog("Candidate skipped by intent matching", { candidate, intentTokens });
+			continue;
+		}
+
+		if (!candidatePassesCollectionConstraints(candidate, context)) {
+			verboseLog("Candidate skipped by collection constraints", {
+				candidate,
+				keyPath: context.keyPath,
+				description: context.description,
+			});
 			continue;
 		}
 
@@ -837,12 +885,18 @@ async function resolveValidSelector(
 	failureError?: unknown,
 ): Promise<string | null> {
 	const intentTokens = getIntentTokens(keyPath, selector);
+	const validationContext: CandidateValidationContext = {
+		keyPath,
+		failedSelector: selector,
+		description: options.description,
+	};
 	const directRepairCandidates = generateDirectRepairCandidates(selector);
 	const directRepairMatch = await findValidSelector(
 		page,
 		directRepairCandidates,
 		options.requireVisible ?? true,
 		intentTokens,
+		validationContext,
 	);
 	if (directRepairMatch) {
 		return directRepairMatch;
@@ -854,13 +908,25 @@ async function resolveValidSelector(
 	}
 
 	const domCandidates = await collectDomSelectorCandidates(page, keyPath, selector, options);
-	const domMatch = await findValidSelector(page, domCandidates, options.requireVisible ?? true, intentTokens);
+	const domMatch = await findValidSelector(
+		page,
+		domCandidates,
+		options.requireVisible ?? true,
+		intentTokens,
+		validationContext,
+	);
 	if (domMatch) {
 		return domMatch;
 	}
 
 	const projectCandidates = getProjectSelectorCandidates(keyPath, selector);
-	const projectMatch = await findValidSelector(page, projectCandidates, options.requireVisible ?? true, intentTokens);
+	const projectMatch = await findValidSelector(
+		page,
+		projectCandidates,
+		options.requireVisible ?? true,
+		intentTokens,
+		validationContext,
+	);
 	if (projectMatch) {
 		return projectMatch;
 	}
@@ -886,6 +952,7 @@ async function resolveValidSelector(
 		),
 		options.requireVisible ?? true,
 		intentTokens,
+		validationContext,
 	);
 }
 

@@ -7,10 +7,12 @@
 - Next run uses the saved fixed locator automatically.
 **/
 
+
 PS C:\Apps & Workspace\Workspace\Playwright E2E> npm test -- --workers=1
 
 > playwright-e2e@1.0.0 test
 > node scripts/healUntilStable.js --workers=1
+
 
 [AI-Heal] Run 1/12
 
@@ -32,27 +34,59 @@ Running 5 tests using 1 worker
 [AI-Heal][Live] Action start {
   keyPath: 'login.password',
   resolvedKeyPath: 'login.password',
-  selector: '#password',
+  selector: '#psword',
   description: 'Login password field',
   actionTimeoutMs: 15000
 }
-[AI-Heal][Live] Action succeeded without LLM healing {
+[AI-Heal][Live] Extended current test timeout for healing {
+  keyPath: 'login.password',
+  selector: '#psword',
+  extraMs: 60000,
+  newTimeoutMs: 150000
+}
+[AI-Heal][Live] LLM healing triggered {
   keyPath: 'login.password',
   resolvedKeyPath: 'login.password',
-  selector: '#password'
+  failedSelector: '#psword',
+  error: 'locator.fill: Timeout 15000ms exceeded.\n' +
+    'Call log:\n' +
+    "\x1B[2m  - waiting for locator('#psword')\x1B[22m\n"
 }
+[AI-Heal][Live] LLM healing applied {
+  keyPath: 'login.password',
+  resolvedKeyPath: 'login.password',
+  from: '#psword',
+  to: '[data-test="password"]'
+}
+[AI-Heal] Login password field: '#psword' -> '[data-test="password"]' (saved in C:\Apps & Workspace\Workspace\Playwright E2E\src\pages\locator-overrides.json)
 [AI-Heal][Live] Action start {
   keyPath: 'login.loginButton',
   resolvedKeyPath: 'login.loginButton',
-  selector: '#login-button',
+  selector: '#logi-button',
   description: 'Login button',
   actionTimeoutMs: 15000
 }
-[AI-Heal][Live] Action succeeded without LLM healing {
+[AI-Heal][Live] Extended current test timeout for healing {
+  keyPath: 'login.loginButton',
+  selector: '#logi-button',
+  extraMs: 60000,
+  newTimeoutMs: 210000
+}
+[AI-Heal][Live] LLM healing triggered {
   keyPath: 'login.loginButton',
   resolvedKeyPath: 'login.loginButton',
-  selector: '#login-button'
+  failedSelector: '#logi-button',
+  error: 'locator.click: Timeout 15000ms exceeded.\n' +
+    'Call log:\n' +
+    "\x1B[2m  - waiting for locator('#logi-button')\x1B[22m\n"
 }
+[AI-Heal][Live] LLM healing applied {
+  keyPath: 'login.loginButton',
+  resolvedKeyPath: 'login.loginButton',
+  from: '#logi-button',
+  to: '[data-test="login-button"]'
+}
+[AI-Heal] Login button: '#logi-button' -> '[data-test="login-button"]' (saved in C:\Apps & Workspace\Workspace\Playwright E2E\src\pages\locator-overrides.json)
 [AI-Heal][Live] Action start {
   keyPath: 'inventory.itemCard',
   resolvedKeyPath: 'inventory.itemCard',
@@ -64,7 +98,7 @@ Running 5 tests using 1 worker
   keyPath: 'inventory.itemCard',
   selector: '.inventory_itemz',
   extraMs: 60000,
-  newTimeoutMs: 150000
+  newTimeoutMs: 270000
 }
 [AI-Heal][Live] LLM healing triggered {
   keyPath: 'inventory.itemCard',
@@ -116,7 +150,7 @@ Running 5 tests using 1 worker
   keyPath: 'cart.cartLink',
   selector: '.shopping_cart_linkz',
   extraMs: 60000,
-  newTimeoutMs: 210000
+  newTimeoutMs: 330000
 }
 [AI-Heal][Live] LLM healing triggered {
   keyPath: 'cart.cartLink',
@@ -148,15 +182,31 @@ Running 5 tests using 1 worker
 [AI-Heal][Live] Action start {
   keyPath: 'cart.cartItem',
   resolvedKeyPath: 'cart.cartItem',
-  selector: '.cart_item',
+  selector: '.cartitem',
   description: "Cart row for 'Sauce Labs Fleece Jacket'",
   actionTimeoutMs: 15000
 }
-[AI-Heal][Live] Action succeeded without LLM healing {
+[AI-Heal][Live] Extended current test timeout for healing {
+  keyPath: 'cart.cartItem',
+  selector: '.cartitem',
+  extraMs: 60000,
+  newTimeoutMs: 390000
+}
+[AI-Heal][Live] LLM healing triggered {
   keyPath: 'cart.cartItem',
   resolvedKeyPath: 'cart.cartItem',
-  selector: '.cart_item'
+  failedSelector: '.cartitem',
+  error: 'locator.click: Timeout 15000ms exceeded.\n' +
+    'Call log:\n' +
+    "\x1B[2m  - waiting for locator('.cartitem').filter({ hasText: 'Sauce Labs Fleece Jacket' }).getByRole('button', { name: /remove/i })\x1B[22m\n"
 }
+[AI-Heal][Live] LLM healing applied {
+  keyPath: 'cart.cartItem',
+  resolvedKeyPath: 'cart.cartItem',
+  from: '.cartitem',
+  to: '.cart_item'
+}
+[AI-Heal] Cart row for 'Sauce Labs Fleece Jacket': '.cartitem' -> '.cart_item' (saved in C:\Apps & Workspace\Workspace\Playwright E2E\src\pages\locator-overrides.json)
 [AI-Heal][Live] Action start {
   keyPath: 'inventory.cartBadge',
   resolvedKeyPath: 'inventory.cartBadge',
@@ -169,7 +219,7 @@ Running 5 tests using 1 worker
   resolvedKeyPath: 'inventory.cartBadge',
   selector: '.shopping_cart_link'
 }
-  ✓  1 src\tests\cart.spec.ts:6:5 › Cart Flow (33.8s)
+  ✓  1 src\tests\cart.spec.ts:6:5 › Cart Flow (1.3m)
      2 src\tests\checkout.spec.ts:7:5 › Checkout Flow
 [AI-Heal][Live] Action start {
   keyPath: 'login.username',
@@ -186,26 +236,26 @@ Running 5 tests using 1 worker
 [AI-Heal][Live] Action start {
   keyPath: 'login.password',
   resolvedKeyPath: 'login.password',
-  selector: '#password',
+  selector: '[data-test="password"]',
   description: 'Login password field',
   actionTimeoutMs: 15000
 }
 [AI-Heal][Live] Action succeeded without LLM healing {
   keyPath: 'login.password',
   resolvedKeyPath: 'login.password',
-  selector: '#password'
+  selector: '[data-test="password"]'
 }
 [AI-Heal][Live] Action start {
   keyPath: 'login.loginButton',
   resolvedKeyPath: 'login.loginButton',
-  selector: '#login-button',
+  selector: '[data-test="login-button"]',
   description: 'Login button',
   actionTimeoutMs: 15000
 }
 [AI-Heal][Live] Action succeeded without LLM healing {
   keyPath: 'login.loginButton',
   resolvedKeyPath: 'login.loginButton',
-  selector: '#login-button'
+  selector: '[data-test="login-button"]'
 }
 [AI-Heal][Live] Action start {
   keyPath: 'inventory.itemCard',
@@ -322,15 +372,31 @@ Running 5 tests using 1 worker
 [AI-Heal][Live] Action start {
   keyPath: 'checkout.continueButton',
   resolvedKeyPath: 'checkout.continueButton',
-  selector: '#continue',
+  selector: '#cotinue',
   description: 'Checkout continue button',
   actionTimeoutMs: 15000
 }
-[AI-Heal][Live] Action succeeded without LLM healing {
+[AI-Heal][Live] Extended current test timeout for healing {
+  keyPath: 'checkout.continueButton',
+  selector: '#cotinue',
+  extraMs: 60000,
+  newTimeoutMs: 210000
+}
+[AI-Heal][Live] LLM healing triggered {
   keyPath: 'checkout.continueButton',
   resolvedKeyPath: 'checkout.continueButton',
-  selector: '#continue'
+  failedSelector: '#cotinue',
+  error: 'locator.click: Timeout 15000ms exceeded.\n' +
+    'Call log:\n' +
+    "\x1B[2m  - waiting for locator('#cotinue')\x1B[22m\n"
 }
+[AI-Heal][Live] LLM healing applied {
+  keyPath: 'checkout.continueButton',
+  resolvedKeyPath: 'checkout.continueButton',
+  from: '#cotinue',
+  to: '[data-test="continue"]'
+}
+[AI-Heal] Checkout continue button: '#cotinue' -> '[data-test="continue"]' (saved in C:\Apps & Workspace\Workspace\Playwright E2E\src\pages\locator-overrides.json)
 [AI-Heal][Live] Action start {
   keyPath: 'checkout.finishButton',
   resolvedKeyPath: 'checkout.finishButton',
@@ -338,11 +404,47 @@ Running 5 tests using 1 worker
   description: 'Checkout finish button',
   actionTimeoutMs: 15000
 }
+[AI-Heal][Live] Action succeeded without LLM healing {
+  keyPath: 'checkout.postalCode',
+  resolvedKeyPath: 'checkout.postalCode',
+  selector: '#postal-code'
+}
+[AI-Heal][Live] Action start {
+  keyPath: 'checkout.continueButton',
+  resolvedKeyPath: 'checkout.continueButton',
+  selector: '#cotinue',
+  description: 'Checkout continue button',
+  actionTimeoutMs: 15000
+}
+[AI-Heal][Live] Extended current test timeout for healing {
+  keyPath: 'checkout.continueButton',
+  selector: '#cotinue',
+  extraMs: 60000,
+  newTimeoutMs: 210000
+}
+[AI-Heal][Live] LLM healing triggered {
+  keyPath: 'checkout.continueButton',
+  resolvedKeyPath: 'checkout.continueButton',
+  failedSelector: '#cotinue',
+  error: 'locator.click: Timeout 15000ms exceeded.\n' +
+    'Call log:\n' +
+    "\x1B[2m  - waiting for locator('#cotinue')\x1B[22m\n"
+}
+[AI-Heal][Live] LLM healing applied {
+  keyPath: 'checkout.continueButton',
+  resolvedKeyPath: 'checkout.continueButton',
+  from: '#cotinue',
+  to: '[data-test="continue"]'
+}
+[AI-Heal] Checkout continue button: '#cotinue' -> '[data-test="continue"]' (saved in C:\Apps & Workspace\Workspace\Playwright E2E\src\pages\locator-overrides.json)
+[AI-Heal][Live] Action start {
+  keyPath: 'checkout.finishButton',
+  resolvedKeyPath: 'checkout.finishButton',
 [AI-Heal][Live] Extended current test timeout for healing {
   keyPath: 'checkout.finishButton',
   selector: '#finishz',
   extraMs: 60000,
-  newTimeoutMs: 210000
+  newTimeoutMs: 270000
 }
 [AI-Heal][Live] LLM healing triggered {
   keyPath: 'checkout.finishButton',
@@ -374,15 +476,31 @@ Running 5 tests using 1 worker
 [AI-Heal][Live] Action start {
   keyPath: 'checkout.completeText',
   resolvedKeyPath: 'checkout.completeText',
-  selector: '.complete-text',
+  selector: '.complete-txt',
   description: 'Checkout complete text',
   actionTimeoutMs: 15000
 }
-[AI-Heal][Live] Action succeeded without LLM healing {
+[AI-Heal][Live] Extended current test timeout for healing {
+  keyPath: 'checkout.completeText',
+  selector: '.complete-txt',
+  extraMs: 60000,
+  newTimeoutMs: 330000
+}
+[AI-Heal][Live] LLM healing triggered {
   keyPath: 'checkout.completeText',
   resolvedKeyPath: 'checkout.completeText',
-  selector: '.complete-text'
+  failedSelector: '.complete-txt',
+  error: 'locator.textContent: Timeout 15000ms exceeded.\n' +
+    'Call log:\n' +
+    "\x1B[2m  - waiting for locator('.complete-txt')\x1B[22m\n"
 }
+[AI-Heal][Live] LLM healing applied {
+  keyPath: 'checkout.completeText',
+  resolvedKeyPath: 'checkout.completeText',
+  from: '.complete-txt',
+  to: '[data-test="checkout-complete-container"]'
+}
+[AI-Heal] Checkout complete text: '.complete-txt' -> '[data-test="checkout-complete-container"]' (saved in C:\Apps & Workspace\Workspace\Playwright E2E\src\pages\locator-overrides.json)
 [AI-Heal][Live] Action start {
   keyPath: 'checkout.backToProductsButton',
   resolvedKeyPath: 'checkout.backToProductsButton',
@@ -395,7 +513,7 @@ Running 5 tests using 1 worker
   resolvedKeyPath: 'checkout.backToProductsButton',
   selector: '#back-to-products'
 }
-  ✓  2 src\tests\checkout.spec.ts:7:5 › Checkout Flow (31.9s)
+  ✓  2 src\tests\checkout.spec.ts:7:5 › Checkout Flow (1.0m)
      3 src\tests\inventory.spec.ts:5:5 › Add Items to Cart
 [AI-Heal][Live] Action start {
   keyPath: 'login.username',
@@ -412,26 +530,26 @@ Running 5 tests using 1 worker
 [AI-Heal][Live] Action start {
   keyPath: 'login.password',
   resolvedKeyPath: 'login.password',
-  selector: '#password',
+  selector: '[data-test="password"]',
   description: 'Login password field',
   actionTimeoutMs: 15000
 }
 [AI-Heal][Live] Action succeeded without LLM healing {
   keyPath: 'login.password',
   resolvedKeyPath: 'login.password',
-  selector: '#password'
+  selector: '[data-test="password"]'
 }
 [AI-Heal][Live] Action start {
   keyPath: 'login.loginButton',
   resolvedKeyPath: 'login.loginButton',
-  selector: '#login-button',
+  selector: '[data-test="login-button"]',
   description: 'Login button',
   actionTimeoutMs: 15000
 }
 [AI-Heal][Live] Action succeeded without LLM healing {
   keyPath: 'login.loginButton',
   resolvedKeyPath: 'login.loginButton',
-  selector: '#login-button'
+  selector: '[data-test="login-button"]'
 }
 [AI-Heal][Live] Action start {
   keyPath: 'inventory.itemCard',
@@ -602,7 +720,7 @@ Running 5 tests using 1 worker
   selector: '.shopping_cart_link'
 }
   ✓  3 src\tests\inventory.spec.ts:5:5 › Add Items to Cart (1.8s)
-  ✓  4 src\tests\login.spec.ts:5:6 › Login Tests › Valid Login (1.0s)
+     4 src\tests\login.spec.ts:5:6 › Login Tests › Valid Login
 [AI-Heal][Live] Action start {
   keyPath: 'login.username',
   resolvedKeyPath: 'login.username',
@@ -618,27 +736,28 @@ Running 5 tests using 1 worker
 [AI-Heal][Live] Action start {
   keyPath: 'login.password',
   resolvedKeyPath: 'login.password',
-  selector: '#password',
+  selector: '[data-test="password"]',
   description: 'Login password field',
   actionTimeoutMs: 15000
 }
 [AI-Heal][Live] Action succeeded without LLM healing {
   keyPath: 'login.password',
   resolvedKeyPath: 'login.password',
-  selector: '#password'
+  selector: '[data-test="password"]'
 }
 [AI-Heal][Live] Action start {
   keyPath: 'login.loginButton',
   resolvedKeyPath: 'login.loginButton',
-  selector: '#login-button',
+  selector: '[data-test="login-button"]',
   description: 'Login button',
   actionTimeoutMs: 15000
 }
 [AI-Heal][Live] Action succeeded without LLM healing {
   keyPath: 'login.loginButton',
   resolvedKeyPath: 'login.loginButton',
-  selector: '#login-button'
+  selector: '[data-test="login-button"]'
 }
+  ✓  4 src\tests\login.spec.ts:5:6 › Login Tests › Valid Login (946ms)
      5 src\tests\login.spec.ts:12:6 › Login Tests › Invalid Login Shows Error
 [AI-Heal][Live] Action start {
   keyPath: 'login.username',
@@ -655,26 +774,26 @@ Running 5 tests using 1 worker
 [AI-Heal][Live] Action start {
   keyPath: 'login.password',
   resolvedKeyPath: 'login.password',
-  selector: '#password',
+  selector: '[data-test="password"]',
   description: 'Login password field',
   actionTimeoutMs: 15000
 }
 [AI-Heal][Live] Action succeeded without LLM healing {
   keyPath: 'login.password',
   resolvedKeyPath: 'login.password',
-  selector: '#password'
+  selector: '[data-test="password"]'
 }
 [AI-Heal][Live] Action start {
   keyPath: 'login.loginButton',
   resolvedKeyPath: 'login.loginButton',
-  selector: '#login-button',
+  selector: '[data-test="login-button"]',
   description: 'Login button',
   actionTimeoutMs: 15000
 }
 [AI-Heal][Live] Action succeeded without LLM healing {
   keyPath: 'login.loginButton',
   resolvedKeyPath: 'login.loginButton',
-  selector: '#login-button'
+  selector: '[data-test="login-button"]'
 }
 [AI-Heal][Live] Action start {
   keyPath: 'login.errorMessage',
@@ -688,12 +807,12 @@ Running 5 tests using 1 worker
   resolvedKeyPath: 'login.errorMessage',
   selector: 'data-test=error'
 }
-  ✓  5 src\tests\login.spec.ts:12:6 › Login Tests › Invalid Login Shows Error (766ms)
+  ✓  5 src\tests\login.spec.ts:12:6 › Login Tests › Invalid Login Shows Error (805ms)
 
-  5 passed (1.2m)
+  5 passed (2.5m)
 
 To open last HTML report run:
 
   npx playwright show-report
 
-[AI-Heal] Test run passed on attempt 1. Total locator fixes saved: 4.
+[AI-Heal] Test run passed on attempt 1. Total locator fixes saved: 9.
