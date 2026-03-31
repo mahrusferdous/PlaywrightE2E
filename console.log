@@ -1,3 +1,12 @@
+//** 
+- Test tries old locator.
+- If it fails, system looks at the live page and your project code for better locator ideas.
+- It asks the LLM to suggest likely replacements using that context.
+- It tests each suggestion on the real page.
+- First one that actually works gets saved.
+- Next run uses the saved fixed locator automatically.
+**/
+
 PS C:\Apps & Workspace\Workspace\Playwright E2E> npm test -- --workers=1
 
 > playwright-e2e@1.0.0 test
