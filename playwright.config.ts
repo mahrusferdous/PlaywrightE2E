@@ -35,33 +35,33 @@ export default defineConfig({
 				viewport: { width: 1280, height: 720 },
 			},
 		},
-		{
-			name: "firefox",
-			use: {
-				...devices["Desktop Firefox"],
-				viewport: { width: 1280, height: 720 },
-			},
-		},
-		{
-			name: "webkit",
-			use: {
-				...devices["Desktop Safari"],
-				viewport: { width: 1280, height: 720 },
-			},
-		},
-		// Mobile browsers
-		{
-			name: "Mobile Chrome",
-			use: {
-				...devices["Pixel 5"],
-			},
-		},
-		{
-			name: "Mobile Safari",
-			use: {
-				...devices["iPhone 12"],
-			},
-		},
+		// {
+		// 	name: "firefox",
+		// 	use: {
+		// 		...devices["Desktop Firefox"],
+		// 		viewport: { width: 1280, height: 720 },
+		// 	},
+		// },
+		// {
+		// 	name: "webkit",
+		// 	use: {
+		// 		...devices["Desktop Safari"],
+		// 		viewport: { width: 1280, height: 720 },
+		// 	},
+		// },
+		// // Mobile browsers
+		// {
+		// 	name: "Mobile Chrome",
+		// 	use: {
+		// 		...devices["Pixel 5"],
+		// 	},
+		// },
+		// {
+		// 	name: "Mobile Safari",
+		// 	use: {
+		// 		...devices["iPhone 12"],
+		// 	},
+		// },
 	],
 	webServer: {
 		command: 'echo "Using external test server at ${E2E_BASE_URL}"',

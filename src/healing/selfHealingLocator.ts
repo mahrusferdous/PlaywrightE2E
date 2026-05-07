@@ -20,6 +20,7 @@ interface HealingActionOptions {
 
 interface ResolveLocatorOptions extends HealingActionOptions {
 	validateOnResolve?: boolean;
+	preferLlmOnTimeout?: boolean;
 }
 
 interface FailureCapture {
@@ -204,8 +205,23 @@ function looksLikeLocatorFailure(error: unknown): boolean {
 		message.includes("strict mode violation") ||
 		message.includes("timeout") ||
 		message.includes("not visible") ||
-		message.includes("not found")
+		message.includes("not found") ||
+		message.includes("mismatch") ||
+		message.includes("unexpected") ||
+		message.includes("semantic")
 	);
+}
+
+/**
+ * Checks whether an error message is timeout-specific.
+ */
+function isTimeoutError(error: unknown): boolean {
+	if (!(error instanceof Error)) {
+		return false;
+	}
+
+	const message = error.message.toLowerCase();
+	return message.includes("timeout") || message.includes("timed out");
 }
 
 /**
@@ -281,7 +297,15 @@ function candidateMatchesIntent(candidate: string, tokens: string[]): boolean {
 		return matchCount >= 1;
 	}
 
-	const requiredMatches = tokens.length <= 3 ? 1 : 2;
+	let requiredMatches = tokens.length <= 3 ? 1 : 2;
+
+	// Completion-page targets are commonly confused with generic header/container nodes.
+	// Require a stronger token match so selectors like [data-test="header-container"] are rejected
+	// for key paths such as checkout.completeHeader and checkout.completeText.
+	if (uniqueTokens.includes("complete") && uniqueTokens.length >= 2) {
+		requiredMatches = Math.max(requiredMatches, 2);
+	}
+
 	return matchCount >= requiredMatches;
 }
 
@@ -304,14 +328,40 @@ function candidatePassesCollectionConstraints(candidate: string, context: Candid
 	const normalized = candidate.toLowerCase();
 	const hasListSemantics = /item|card|row|entry|product/.test(normalized);
 	const isGenericContainer = /container|contents?|wrapper|layout|header|footer/.test(normalized);
+	const isSingleControlLike = /link|badge|button|checkout|continue|finish|submit/.test(normalized);
 	const isProductSpecific = /(backpack|onesie|fleece|bike|jacket|t-?shirt|sauce-labs|remove-)/.test(normalized);
 
 	if (isProductSpecific) {
 		return false;
 	}
 
+	if (isSingleControlLike) {
+		return false;
+	}
+
 	if (isGenericContainer && !hasListSemantics) {
 		return false;
+	}
+
+	if (!hasListSemantics) {
+		return false;
+	}
+
+	return true;
+}
+
+/**
+ * Applies keyPath-specific semantic constraints for high-risk locator intents.
+ */
+function candidatePassesKeyPathConstraints(candidate: string, context: CandidateValidationContext): boolean {
+	const normalized = candidate.toLowerCase();
+
+	if (context.keyPath === "checkout.completeHeader") {
+		return /complete|thank\s*you/.test(normalized);
+	}
+
+	if (context.keyPath === "checkout.completeText") {
+		return /complete[-_ ]?text|dispatch|pony/.test(normalized);
 	}
 
 	return true;
@@ -373,6 +423,54 @@ function generateMorphologyCandidates(selector: string): string[] {
 }
 
 /**
+ * Generates repairs for collapsed compound selectors such as `.cartitem` -> `.cart_item`.
+ */
+function generateCompoundSelectorRepairs(selector: string): string[] {
+	const compactClassOrId = selector.trim().match(/^([.#])([a-z0-9-]+)$/i);
+	if (!compactClassOrId) {
+		return [];
+	}
+
+	const [, prefix, body] = compactClassOrId;
+	if (body.includes("_") || body.includes("-")) {
+		return [];
+	}
+
+	const commonSuffixes = [
+		"item",
+		"items",
+		"button",
+		"link",
+		"badge",
+		"container",
+		"header",
+		"footer",
+		"title",
+		"text",
+		"message",
+		"name",
+		"code",
+	];
+
+	const candidates = new Set<string>();
+	for (const suffix of commonSuffixes) {
+		if (!body.endsWith(suffix) || body.length <= suffix.length + 1) {
+			continue;
+		}
+
+		const head = body.slice(0, -suffix.length);
+		if (!head) {
+			continue;
+		}
+
+		candidates.add(`${prefix}${head}_${suffix}`);
+		candidates.add(`${prefix}${head}-${suffix}`);
+	}
+
+	return Array.from(candidates);
+}
+
+/**
  * Generates deterministic repairs directly from the broken selector string.
  */
 function generateDirectRepairCandidates(selector: string): string[] {
@@ -404,6 +502,17 @@ function generateDirectRepairCandidates(selector: string): string[] {
 			if (typoCore) {
 				candidates.add(`[class="${escapeAttributeValue(typoCore)}"]`);
 				candidates.add(`[id="${escapeAttributeValue(typoCore)}"]`);
+			}
+		}
+	}
+
+	for (const compoundCandidate of generateCompoundSelectorRepairs(trimmed)) {
+		candidates.add(compoundCandidate);
+		if (compoundCandidate.startsWith(".") || compoundCandidate.startsWith("#")) {
+			const compoundCore = compoundCandidate.slice(1);
+			if (compoundCore) {
+				candidates.add(`[class="${escapeAttributeValue(compoundCore)}"]`);
+				candidates.add(`[id="${escapeAttributeValue(compoundCore)}"]`);
 			}
 		}
 	}
@@ -743,6 +852,7 @@ async function captureFailureContext(
 	keyPath: string,
 	selector: string,
 	error: unknown,
+	options: { ignoreScopeCompatibility?: boolean } = {},
 ): Promise<FailureCapture | null> {
 	if (page.isClosed()) {
 		verboseLog("Skipping selector healing because page is already closed", { keyPath, selector });
@@ -761,7 +871,7 @@ async function captureFailureContext(
 			detectCurrentPageScope(page),
 		]);
 
-		if (!isPageScopeCompatible(expectedPage, detectedPage.scope)) {
+		if (!options.ignoreScopeCompatibility && !isPageScopeCompatible(expectedPage, detectedPage.scope)) {
 			verboseLog("Skipping healing because current page scope does not match locator scope", {
 				keyPath,
 				selector,
@@ -832,6 +942,15 @@ async function findValidSelector(
 			continue;
 		}
 
+		if (!candidatePassesKeyPathConstraints(candidate, context)) {
+			verboseLog("Candidate skipped by keyPath constraints", {
+				candidate,
+				keyPath: context.keyPath,
+				description: context.description,
+			});
+			continue;
+		}
+
 		if (!candidatePassesCollectionConstraints(candidate, context)) {
 			verboseLog("Candidate skipped by collection constraints", {
 				candidate,
@@ -890,6 +1009,13 @@ async function resolveValidSelector(
 		failedSelector: selector,
 		description: options.description,
 	};
+	const failure = await captureFailureContext(page, keyPath, selector, failureError ?? "Locator action failed", {
+		ignoreScopeCompatibility: true,
+	});
+	if (!failure) {
+		return null;
+	}
+
 	const directRepairCandidates = generateDirectRepairCandidates(selector);
 	const directRepairMatch = await findValidSelector(
 		page,
@@ -900,11 +1026,6 @@ async function resolveValidSelector(
 	);
 	if (directRepairMatch) {
 		return directRepairMatch;
-	}
-
-	const failure = await captureFailureContext(page, keyPath, selector, failureError ?? "Locator action failed");
-	if (!failure) {
-		return null;
 	}
 
 	const domCandidates = await collectDomSelectorCandidates(page, keyPath, selector, options);
@@ -937,23 +1058,16 @@ async function resolveValidSelector(
 		domSelectorCandidates: domCandidates,
 		projectSelectorCandidates: projectCandidates,
 	});
-	verboseLog("LLM candidates received", { keyPath, llmCandidates });
+	verboseLog("LLM candidates received after deterministic and DOM matching", { keyPath, llmCandidates });
+
 	if (llmCandidates.length === 0) {
-		verboseLog("LLM returned no candidates", { keyPath });
 		return null;
 	}
 
-	const mergedCandidates = Array.from(new Set([...directRepairCandidates, ...domCandidates, ...llmCandidates]));
-	return findValidSelector(
-		page,
-		mergedCandidates.slice(
-			0,
-			Math.max(options.maxCandidates ?? DEFAULT_MAX_VALIDATION_CANDIDATES, DEFAULT_MAX_DOM_CANDIDATES),
-		),
-		options.requireVisible ?? true,
-		intentTokens,
-		validationContext,
-	);
+	const mergedCandidates = Array.from(new Set([...domCandidates, ...projectCandidates, ...llmCandidates]));
+	return findValidSelector(page, mergedCandidates, options.requireVisible ?? true, intentTokens, validationContext);
+
+	return null;
 }
 
 /**

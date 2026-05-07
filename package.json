@@ -8,7 +8,8 @@
 		"test:raw": "playwright test",
 		"test:heal": "node scripts/healUntilStable.js",
 		"test:headed": "playwright test --headed",
-		"test:report": "playwright show-report"
+		"test:report": "playwright show-report",
+		"mcp:start": "cross-env AI_HEALING_ENABLED=true ts-node src/mcpServer.ts"
 	},
 	"keywords": [],
 	"author": "",
@@ -17,12 +18,18 @@
 	"type": "commonjs",
 	"devDependencies": {
 		"@playwright/test": "^1.58.1",
+		"@types/body-parser": "^1.19.5",
+		"@types/express": "^5.0.2",
 		"@types/node": "^25.3.3",
+		"cross-env": "^7.0.3",
 		"ts-node": "^10.9.2",
 		"typescript": "^5.9.3"
 	},
 	"dependencies": {
 		"axios": "^1.13.4",
-		"dotenv": "^17.2.3"
+		"dotenv": "^17.2.3",
+		"express": "^4.18.2",
+		"body-parser": "^1.20.2",
+		"playwright": "^1.58.1"
 	}
 }

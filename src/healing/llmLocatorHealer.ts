@@ -27,6 +27,11 @@ const NON_SELECTOR_REPLY_PATTERNS = [
 	"could you please specify",
 	"what exactly needs help",
 	"how can i assist",
+	"selenium webdriver",
+	"please note that the above selectors",
+	"also note that the above selectors",
+	"based on a general understanding of your ui",
+	"element_located",
 ];
 
 export function isAiHealingEnabled() {
@@ -131,6 +136,11 @@ function isLikelySelector(value: string): boolean {
 		return false;
 	}
 
+	const lowered = candidate.toLowerCase();
+	if (NON_SELECTOR_REPLY_PATTERNS.some((pattern) => lowered.includes(pattern))) {
+		return false;
+	}
+
 	const selectorStart =
 		/^(css=|xpath=|id=|text=|data-test=|data-testid=|role=|[.#\[]|[a-zA-Z][\w-]*(?=\s|[.#:[>+~]|$))/;
 	if (!selectorStart.test(candidate)) {
@@ -151,7 +161,62 @@ function isLikelySelector(value: string): boolean {
 		return false;
 	}
 
+	if (!/[#.[\]=:'"()]/.test(candidate) && /^[a-z][a-z0-9_-]+$/i.test(candidate)) {
+		// Bare words are usually prose artifacts; keep only plausible HTML tags.
+		const htmlTagLike =
+			/^(a|button|input|textarea|select|option|label|form|div|span|h[1-6]|main|nav|header|footer|section|article|ul|ol|li|img)$/;
+		if (!htmlTagLike.test(candidate)) {
+			return false;
+		}
+	}
+
 	return true;
+}
+
+/**
+ * Attempts to parse selectors from JSON-like snippets inside model output.
+ */
+function parseSelectorsFromEmbeddedJson(content: string): string[] {
+	const snippets = [
+		...(content.match(/```json[\s\S]*?```/gi) ?? []).map((snippet) =>
+			snippet
+				.replace(/^```json\s*/i, "")
+				.replace(/```$/i, "")
+				.trim(),
+		),
+		...(content.match(/\{[\s\S]*?\}/g) ?? []),
+		...(content.match(/\[[\s\S]*?\]/g) ?? []),
+	];
+
+	const candidates: string[] = [];
+	for (const snippet of snippets) {
+		try {
+			const parsed = JSON.parse(snippet) as unknown;
+			if (Array.isArray(parsed)) {
+				for (const item of parsed) {
+					if (typeof item === "string") {
+						candidates.push(item);
+					}
+				}
+				continue;
+			}
+
+			if (parsed && typeof parsed === "object" && "selectors" in parsed) {
+				const selectors = (parsed as { selectors?: unknown }).selectors;
+				if (Array.isArray(selectors)) {
+					for (const item of selectors) {
+						if (typeof item === "string") {
+							candidates.push(item);
+						}
+					}
+				}
+			}
+		} catch {
+			// Ignore malformed snippets and keep scanning.
+		}
+	}
+
+	return candidates;
 }
 
 /**
@@ -159,11 +224,40 @@ function isLikelySelector(value: string): boolean {
  */
 function normalizeSelector(value: string): string {
 	return value
+		.replace(/\/\*[\s\S]*?\*\//g, "") // remove block comments
+		.replace(/\/\/.*$/gm, "") // remove line comments
 		.trim()
 		.replace(/^['"`]+/, "")
 		.replace(/['"`]+$/, "")
-		.replace(/;+$/, "")
-		.replace(/[-_]+$/, "");
+		.replace(/[;,]+$/g, "")
+		.replace(/[\s]{2,}/g, " ")
+		.replace(/[-_]+$/, "")
+		.trim();
+}
+
+/**
+ * Deduplicates and normalizes an array of selectors preserving order.
+ */
+function dedupeSelectors(list: string[]): string[] {
+	const seen = new Set<string>();
+	const out: string[] = [];
+	for (const raw of list) {
+		const n = normalizeSelector(raw);
+		if (!n) continue;
+		if (!isLikelySelector(n)) continue;
+		if (!seen.has(n)) {
+			seen.add(n);
+			out.push(n);
+		}
+	}
+	return out;
+}
+
+/**
+ * Removes duplicate strings while preserving first occurrence.
+ */
+function uniqueStrings(list: string[]): string[] {
+	return Array.from(new Set(list.filter((item) => item.trim().length > 0)));
 }
 
 /**
@@ -274,13 +368,17 @@ function parseSelectors(content: string): string[] {
 	const tryParse = (value: string): string[] => {
 		const parsed = JSON.parse(value) as unknown;
 		if (Array.isArray(parsed)) {
-			return parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+			return uniqueStrings(
+				parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0),
+			);
 		}
 
 		if (typeof parsed === "object" && parsed !== null && "selectors" in parsed) {
 			const selectors = (parsed as { selectors?: unknown }).selectors;
 			if (Array.isArray(selectors)) {
-				return selectors.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+				return uniqueStrings(
+					selectors.filter((item): item is string => typeof item === "string" && item.trim().length > 0),
+				);
 			}
 		}
 
@@ -333,8 +431,11 @@ function parseSelectors(content: string): string[] {
 		.filter((line) => isLikelySelector(line));
 
 	const fromBackticks = collectSelectorsFromBackticks(trimmed);
+	const fromEmbeddedJson = parseSelectorsFromEmbeddedJson(trimmed)
+		.map((line) => normalizeSelector(line))
+		.filter((line) => isLikelySelector(line));
 
-	return Array.from(new Set([...lines, ...fromBackticks]));
+	return Array.from(new Set([...fromEmbeddedJson, ...lines, ...fromBackticks]));
 }
 
 /**
@@ -401,12 +502,12 @@ function getUserPrompt(prompt: LocatorHealingPrompt, repairMode = false) {
 
 	if (prompt.projectSelectorCandidates && prompt.projectSelectorCandidates.length > 0) {
 		sections.push("Reference selectors mined from project source (prefer these when they match intent):");
-		sections.push(prompt.projectSelectorCandidates.slice(0, 25).join("\n"));
+		sections.push(uniqueStrings(prompt.projectSelectorCandidates).slice(0, 25).join("\n"));
 	}
 
 	if (prompt.domSelectorCandidates && prompt.domSelectorCandidates.length > 0) {
 		sections.push("Selectors mined from current live DOM (high confidence):");
-		sections.push(prompt.domSelectorCandidates.slice(0, 20).join("\n"));
+		sections.push(uniqueStrings(prompt.domSelectorCandidates).slice(0, 20).join("\n"));
 	}
 
 	sections.push("Visible UI text snippet:", prompt.uiTextSnippet);
@@ -488,11 +589,9 @@ async function requestFromOllamaStreaming(
 			const token = extractMessageContent(parsed.message?.content);
 			if (token) {
 				fullContent += token;
-				process.stdout.write(token);
 			}
 
 			if (parsed.done) {
-				process.stdout.write("\n");
 				liveLog("RX stream complete");
 			}
 		} catch {
@@ -514,6 +613,11 @@ async function requestFromOllamaStreaming(
 	if (buffer.trim()) {
 		flushLine(buffer);
 	}
+
+	liveLog("RX stream content summary", {
+		characters: fullContent.length,
+		preview: truncateForLog(fullContent, 800),
+	});
 
 	return fullContent;
 }
@@ -541,7 +645,10 @@ async function requestFromOllamaNonStreaming(
 
 	const messageContent = extractMessageContent(response.data?.message?.content);
 	if (enableLiveLogs) {
-		liveLog("RX non-stream response", truncateForLog(messageContent, 4000));
+		liveLog("RX non-stream content summary", {
+			characters: messageContent.length,
+			preview: truncateForLog(messageContent, 800),
+		});
 	}
 
 	return messageContent;
@@ -595,11 +702,10 @@ async function requestFromOllama(prompt: LocatorHealingPrompt): Promise<string[]
 	}
 
 	verboseLog("Raw Ollama response content", messageContent.slice(0, 1200));
-	const selectors = parseSelectors(messageContent);
+	let selectors = parseSelectors(messageContent);
+	selectors = dedupeSelectors(selectors);
 	const fallbackSelectors = generateFallbackSelectors(prompt);
-	const merged = Array.from(
-		new Set([...fallbackSelectors, ...selectors].map((selector) => normalizeSelector(selector)).filter(Boolean)),
-	);
+	const merged = Array.from(new Set([...dedupeSelectors(fallbackSelectors), ...selectors]));
 	verboseLog("Parsed selector candidates", { selectors, fallbackSelectors, merged });
 	return merged;
 }

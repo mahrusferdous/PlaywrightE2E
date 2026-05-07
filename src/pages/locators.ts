@@ -16,20 +16,20 @@ export const appLocators = {
 	},
 	inventory: {
 		itemCard: ".inventory_item",
-		cartBadge: ".shopping_cart_link",
+		cartBadge: ".shopping_cart_link .shopping_cart_bade",
 		addToCartButtonName: /add to cart/i,
 		removeButtonName: /remove/i,
 	},
 	cart: {
 		cartLink: ".shopping_cart_link",
 		cartItem: ".cart_item",
-		checkoutButton: "#checkout",
+		checkoutButton: "#check",
 		removeButtonName: /remove/i,
 	},
 	checkout: {
 		firstName: "#first-name",
 		lastName: "#last-name",
-		postalCode: "#postal-code",
+		postalCode: "#postal",
 		continueButton: "#continue",
 		finishButton: "#finish",
 		backToProductsButton: "#back-to-products",

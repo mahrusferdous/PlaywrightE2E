@@ -1,6 +1,7 @@
 import { Page } from "@playwright/test";
 import { appLocators } from "./locators";
 import { withSelfHealingLocator } from "../healing/selfHealingLocator";
+import { setLocatorValue } from "../healing/locatorStore";
 
 /**
  * Encapsulates user interactions on the product inventory screen.
@@ -41,13 +42,56 @@ export class InventoryPage {
 	 * @returns A promise that resolves to the numeric cart item count.
 	 */
 	async itemCount() {
-		const text = await withSelfHealingLocator(
-			this.page,
-			"inventory.cartBadge",
-			(locator) => locator.textContent(),
-			{ description: "Inventory cart badge", requireVisible: false },
-		);
-		return text ? parseInt(text) : 0;
+		try {
+			const text = await withSelfHealingLocator(
+				this.page,
+				"inventory.cartBadge",
+				async (locator) => {
+					const count = await locator.count();
+					if (count === 0) {
+						throw new Error("[InventoryPage] inventory.cartBadge not found");
+					}
+
+					const raw = (
+						await locator
+							.first()
+							.innerText()
+							.catch(() => "")
+					).trim();
+					if (!raw) {
+						throw new Error("[InventoryPage] inventory.cartBadge text is empty");
+					}
+
+					const numeric = Number.parseInt(raw, 10);
+					if (Number.isNaN(numeric)) {
+						throw new Error(
+							`[InventoryPage] Non-numeric cart badge text for inventory.cartBadge: '${raw}'`,
+						);
+					}
+
+					return String(numeric);
+				},
+				{ description: "Inventory cart badge", requireVisible: false },
+			);
+
+			const parsed = Number.parseInt((text ?? "0").trim(), 10);
+			return Number.isNaN(parsed) ? 0 : parsed;
+		} catch (error) {
+			const fallbackBadge = this.page.locator('[data-test="shopping-cart-badge"], .shopping_cart_badge').first();
+			const fallbackCount = await fallbackBadge.count().catch(() => 0);
+			if (fallbackCount === 0) {
+				return 0;
+			}
+
+			const fallbackText = (await fallbackBadge.innerText().catch(() => "")).trim();
+			const fallbackParsed = Number.parseInt(fallbackText, 10);
+			if (!Number.isNaN(fallbackParsed)) {
+				setLocatorValue("inventory.cartBadge", '[data-test="shopping-cart-badge"]');
+				return fallbackParsed;
+			}
+
+			throw error;
+		}
 	}
 
 	/**

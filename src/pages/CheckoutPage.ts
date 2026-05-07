@@ -68,10 +68,21 @@ export class CheckoutPage {
 	 * @returns A promise that resolves to completion header text or null.
 	 */
 	async getCompleteHeaderText() {
-		return withSelfHealingLocator(this.page, "checkout.completeHeader", (locator) => locator.textContent(), {
-			description: "Checkout complete header",
-			requireVisible: false,
-		});
+		return withSelfHealingLocator(
+			this.page,
+			"checkout.completeHeader",
+			async (locator) => {
+				const text = (await locator.textContent()) ?? "";
+				if (!text.includes("Thank you for your order!")) {
+					throw new Error(`[CheckoutPage] Unexpected checkout complete header text: '${text}'`);
+				}
+				return text;
+			},
+			{
+				description: "Checkout complete header",
+				requireVisible: false,
+			},
+		);
 	}
 
 	/**

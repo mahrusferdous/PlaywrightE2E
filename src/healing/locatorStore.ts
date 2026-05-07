@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { appLocators } from "../pages/locators";
 
-const OVERRIDES_PATH = path.resolve(process.cwd(), "src/pages/locator-overrides.json");
+const OVERRIDES_PATH = path.resolve(__dirname, "../pages/locator-overrides.json");
 
 let overridesCache: Record<string, string> | null = null;
 let locatorKeyPathCache: string[] | null = null;
@@ -32,7 +32,7 @@ function collectStringLocatorPaths(value: unknown, prefix = ""): string[] {
 /**
  * Caches and returns known string locator key paths.
  */
-function getAllStringLocatorKeyPaths(): string[] {
+export function getAllStringLocatorKeyPaths(): string[] {
 	if (locatorKeyPathCache !== null) {
 		return locatorKeyPathCache;
 	}
