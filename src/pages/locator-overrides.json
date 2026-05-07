@@ -1,5 +1,1 @@
-{
-  "inventory.cartBadge": "[data-test=\"shopping-cart-badge\"]",
-  "cart.checkoutButton": "[data-test=\"checkout\"]",
-  "checkout.postalCode": "[data-test=\"postalCode\"]"
-}
+{}
