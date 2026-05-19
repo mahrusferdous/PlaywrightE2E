@@ -1009,56 +1009,110 @@ async function resolveValidSelector(
 		failedSelector: selector,
 		description: options.description,
 	};
-	const failure = await captureFailureContext(page, keyPath, selector, failureError ?? "Locator action failed", {
-		ignoreScopeCompatibility: true,
-	});
+	
+	let failure: FailureCapture | null = null;
+	try {
+		failure = await captureFailureContext(page, keyPath, selector, failureError ?? "Locator action failed", {
+			ignoreScopeCompatibility: true,
+		});
+	} catch (captureError) {
+		verboseLog("Error capturing failure context", {
+			keyPath,
+			selector,
+			error: captureError instanceof Error ? captureError.message : String(captureError),
+		});
+	}
+	
 	if (!failure) {
 		return null;
 	}
 
 	const directRepairCandidates = generateDirectRepairCandidates(selector);
-	const directRepairMatch = await findValidSelector(
-		page,
-		directRepairCandidates,
-		options.requireVisible ?? true,
-		intentTokens,
-		validationContext,
-	);
-	if (directRepairMatch) {
-		return directRepairMatch;
+	if (directRepairCandidates.length > 0) {
+		const directRepairMatch = await findValidSelector(
+			page,
+			directRepairCandidates,
+			options.requireVisible ?? true,
+			intentTokens,
+			validationContext,
+		);
+		if (directRepairMatch) {
+			verboseLog("Direct repair candidate matched", { keyPath, selector: directRepairMatch });
+			return directRepairMatch;
+		}
 	}
 
-	const domCandidates = await collectDomSelectorCandidates(page, keyPath, selector, options);
-	const domMatch = await findValidSelector(
-		page,
-		domCandidates,
-		options.requireVisible ?? true,
-		intentTokens,
-		validationContext,
-	);
-	if (domMatch) {
-		return domMatch;
+	let domCandidates: string[] = [];
+	try {
+		domCandidates = await collectDomSelectorCandidates(page, keyPath, selector, options);
+	} catch (domError) {
+		verboseLog("Error collecting DOM candidates", {
+			keyPath,
+			selector,
+			error: domError instanceof Error ? domError.message : String(domError),
+		});
+	}
+	
+	if (domCandidates.length > 0) {
+		const domMatch = await findValidSelector(
+			page,
+			domCandidates,
+			options.requireVisible ?? true,
+			intentTokens,
+			validationContext,
+		);
+		if (domMatch) {
+			return domMatch;
+		}
 	}
 
-	const projectCandidates = getProjectSelectorCandidates(keyPath, selector);
-	const projectMatch = await findValidSelector(
-		page,
-		projectCandidates,
-		options.requireVisible ?? true,
-		intentTokens,
-		validationContext,
-	);
-	if (projectMatch) {
-		return projectMatch;
+	let projectCandidates: string[] = [];
+	try {
+		projectCandidates = getProjectSelectorCandidates(keyPath, selector);
+	} catch (projError) {
+		verboseLog("Error getting project candidates", {
+			keyPath,
+			selector,
+			error: projError instanceof Error ? projError.message : String(projError),
+		});
+	}
+	
+	if (projectCandidates.length > 0) {
+		const projectMatch = await findValidSelector(
+			page,
+			projectCandidates,
+			options.requireVisible ?? true,
+			intentTokens,
+			validationContext,
+		);
+		if (projectMatch) {
+			verboseLog("Project candidate matched", { keyPath, selector: projectMatch });
+			return projectMatch;
+		}
 	}
 
 	const prompt = buildHealingPrompt(keyPath, selector, failure);
-	const llmCandidates = await requestSelectorCandidates({
-		...prompt,
-		domSelectorCandidates: domCandidates,
-		projectSelectorCandidates: projectCandidates,
-	});
-	verboseLog("LLM candidates received after deterministic and DOM matching", { keyPath, llmCandidates });
+	let llmCandidates: string[] = [];
+	try {
+		llmCandidates = await requestSelectorCandidates({
+			...prompt,
+			domSelectorCandidates: domCandidates,
+			projectSelectorCandidates: projectCandidates,
+		});
+		verboseLog("LLM candidates received after deterministic and DOM matching", { keyPath, llmCandidates });
+	} catch (llmError) {
+		const errorMsg = llmError instanceof Error ? llmError.message : String(llmError);
+		verboseLog("LLM request error in resolveValidSelector", {
+			keyPath,
+			selector,
+			error: errorMsg,
+			stack: llmError instanceof Error ? llmError.stack : "",
+		});
+		liveLog("LLM request failed; continuing with DOM/project candidates", {
+			keyPath,
+			error: errorMsg,
+		});
+	}
 
 	if (llmCandidates.length === 0) {
 		return null;
@@ -1066,8 +1120,6 @@ async function resolveValidSelector(
 
 	const mergedCandidates = Array.from(new Set([...domCandidates, ...projectCandidates, ...llmCandidates]));
 	return findValidSelector(page, mergedCandidates, options.requireVisible ?? true, intentTokens, validationContext);
-
-	return null;
 }
 
 /**
@@ -1230,17 +1282,27 @@ export async function withSelfHealingLocator<T>(
 			);
 			return healedResult;
 		} catch (healedActionError) {
+			const healedErrorMsg =
+				healedActionError instanceof Error ? healedActionError.message : String(healedActionError);
 			liveLog("LLM healed selector failed during action", {
 				keyPath,
 				resolvedKeyPath,
-				selector: validSelector,
-				error: healedActionError instanceof Error ? healedActionError.message : String(healedActionError),
+				originalSelector: selector,
+				healedSelector: validSelector,
+				originalError: initialError instanceof Error ? initialError.message : String(initialError),
+				healedError: healedErrorMsg,
 			});
 			verboseLog("Healed selector failed during action execution", {
 				keyPath,
+				originalSelector: selector,
 				validSelector,
-				error: healedActionError instanceof Error ? healedActionError.message : String(healedActionError),
+				originalError: initialError instanceof Error ? initialError.message : String(initialError),
+				healedError: healedErrorMsg,
+				healedStack: healedActionError instanceof Error ? healedActionError.stack : "",
 			});
+			console.error(
+				`[AI-Heal] Healed selector '${validSelector}' also failed for '${options.description ?? resolvedKeyPath}'. Original error: ${initialError instanceof Error ? initialError.message : String(initialError)}`,
+			);
 			throw initialError;
 		}
 	}

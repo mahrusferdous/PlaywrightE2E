@@ -684,7 +684,14 @@ async function requestFromOllama(prompt: LocatorHealingPrompt): Promise<string[]
 			liveLog("Streaming request failed; retrying in non-stream mode", {
 				error: streamError instanceof Error ? streamError.message : String(streamError),
 			});
-			messageContent = await requestFromOllamaNonStreaming(baseUrl, prompt, true);
+			try {
+				messageContent = await requestFromOllamaNonStreaming(baseUrl, prompt, true);
+			} catch (nonStreamError) {
+				liveLog("Non-stream fallback also failed", {
+					error: nonStreamError instanceof Error ? nonStreamError.message : String(nonStreamError),
+				});
+				throw nonStreamError;
+			}
 		}
 	} else {
 		messageContent = await requestFromOllamaNonStreaming(baseUrl, prompt, false);
@@ -696,9 +703,19 @@ async function requestFromOllama(prompt: LocatorHealingPrompt): Promise<string[]
 			preview: messageContent.slice(0, 500),
 		});
 
-		messageContent = liveLogEnabled
-			? await requestFromOllamaNonStreaming(baseUrl, prompt, true, true)
-			: await requestFromOllamaNonStreaming(baseUrl, prompt, false, true);
+		try {
+			messageContent = liveLogEnabled
+				? await requestFromOllamaNonStreaming(baseUrl, prompt, true, true)
+				: await requestFromOllamaNonStreaming(baseUrl, prompt, false, true);
+		} catch (repairError) {
+			verboseLog("LLM repair prompt failed", {
+				keyPath: prompt.keyPath,
+				error: repairError instanceof Error ? repairError.message : String(repairError),
+			});
+			liveLog("LLM repair prompt failed; using fallback selectors", {
+				error: repairError instanceof Error ? repairError.message : String(repairError),
+			});
+		}
 	}
 
 	verboseLog("Raw Ollama response content", messageContent.slice(0, 1200));
@@ -728,8 +745,15 @@ export async function requestSelectorCandidates(prompt: LocatorHealingPrompt): P
 			projectContextSnippet,
 		});
 	} catch (error) {
-		verboseLog("Ollama request failed", error);
-		console.warn("[AI-Heal] LLM request failed. Skipping healing for this step.", error);
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		const errorStack = error instanceof Error ? error.stack : "";
+		verboseLog("Ollama request failed", {
+			keyPath: prompt.keyPath,
+			failedSelector: prompt.failedSelector,
+			message: errorMessage,
+			stack: errorStack,
+		});
+		console.warn(`[AI-Heal] LLM request failed for keyPath '${prompt.keyPath}': ${errorMessage}. Skipping healing for this step.`, error);
 		return [];
 	}
 }
